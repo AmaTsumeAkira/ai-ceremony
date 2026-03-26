@@ -45,6 +45,9 @@ export default function Mobile() {
   const [votedPollId, setVotedPollId] = useState(null)
   const [pollResults, setPollResults] = useState(null)
 
+  // System message state
+  const [systemMsg, setSystemMsg] = useState(null)
+
   // Listen for mode changes
   useEffect(() => {
     if (!socket) return
@@ -87,6 +90,11 @@ export default function Mobile() {
     socket.on('poll:active', handlePollActive)
     socket.on('poll:voted', handlePollVoted)
 
+    // System message listener
+    socket.on('system:message', (data) => {
+      setSystemMsg(data.text)
+    })
+
     // Request current poll on connect
     socket.emit('poll:get-active')
 
@@ -101,8 +109,16 @@ export default function Mobile() {
       socket.off('poll:hidden', handlePollHidden)
       socket.off('poll:active', handlePollActive)
       socket.off('poll:voted', handlePollVoted)
+      socket.off('system:message')
     }
   }, [socket])
+
+  // Auto-dismiss system message after 8 seconds
+  useEffect(() => {
+    if (!systemMsg) return
+    const timer = setTimeout(() => setSystemMsg(null), 8000)
+    return () => clearTimeout(timer)
+  }, [systemMsg])
 
   const handleRegister = () => {
     if (!nickname.trim()) {
@@ -271,6 +287,18 @@ export default function Mobile() {
           </div>
         </div>
 
+        {/* System Message */}
+        {systemMsg && (
+          <div
+            style={styles.systemMsg}
+            onClick={() => setSystemMsg(null)}
+          >
+            <span style={{ marginRight: 8 }}>💬</span>
+            <span style={{ flex: 1 }}>{systemMsg}</span>
+            <span style={{ marginLeft: 8, opacity: 0.6, fontSize: 12 }}>✕</span>
+          </div>
+        )}
+
         {/* Avatar Section */}
         <div style={styles.avatarSection}>
           <FaceUploader
@@ -406,7 +434,7 @@ export default function Mobile() {
               onChange={(e) => setDanmakuText(e.target.value)}
               onPressEnter={handleSendDanmaku}
               style={styles.danmakuInput}
-              maxLength={50}
+              maxLength={100}
               disabled={sending}
             />
             <Button
@@ -543,6 +571,21 @@ const styles = {
     padding: '4px 10px',
     borderRadius: '20px',
     fontWeight: '500',
+  },
+  systemMsg: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px 16px',
+    margin: '0 16px',
+    marginTop: '8px',
+    background: 'rgba(19, 194, 194, 0.15)',
+    border: '1px solid rgba(19, 194, 194, 0.3)',
+    borderRadius: '12px',
+    color: '#13c2c2',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    animation: 'slideUp 0.3s ease-out',
   },
   avatarSection: {
     flex: 1,

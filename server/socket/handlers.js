@@ -70,6 +70,15 @@ function setupSocket(io) {
     }
   }, 30000);
 
+  // 清理 interval 防止进程退出时悬挂
+  io.on('close', () => {
+    clearInterval(rateLimitCleanup);
+    if (decayInterval) {
+      clearInterval(decayInterval);
+      decayInterval = null;
+    }
+  });
+
   io.on('connection', (socket) => {
     console.log(`[Socket] connected: ${socket.id}`);
     broadcastUsersCount(io);
@@ -429,6 +438,19 @@ function checkDanmakuRate(socketId) {
         console.log(`[Emoji] ${socket.userNickname || '匿名'}: ${emoji.trim()}`);
       }
     });
+
+    // ========== 系统消息 ==========
+    socket.on('control:system-message', requireAuth((data) => {
+      const { text } = data;
+      if (typeof text === 'string' && text.trim()) {
+        io.to('users').emit('system:message', {
+          text: text.trim(),
+          timestamp: Date.now(),
+        });
+        logEvent('system_message', { text: text.trim() });
+        console.log(`[System] message sent: "${text.trim()}"`);
+      }
+    }));
 
     // ========== 自定义背景 ==========
     socket.on('control:set-background', requireAuth((data) => {

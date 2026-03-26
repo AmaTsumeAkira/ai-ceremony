@@ -98,6 +98,9 @@ export default function Control() {
   const [announcementDuration, setAnnouncementDuration] = useState(5)
   const [announcementActive, setAnnouncementActive] = useState(false)
 
+  // System message state
+  const [systemMessage, setSystemMessage] = useState('')
+
   // Activity log state
   const [activityLogs, setActivityLogs] = useState([])
 
@@ -385,6 +388,16 @@ export default function Control() {
     emit('control:announcement-cancel')
     setAnnouncementActive(false)
     antMessage.warning('📢 公告已取消')
+  }
+
+  const handleSendSystemMessage = () => {
+    if (!systemMessage.trim()) {
+      antMessage.warning('请输入系统消息内容')
+      return
+    }
+    emit('control:system-message', { text: systemMessage.trim() })
+    setSystemMessage('')
+    antMessage.success('💬 系统消息已发送到所有手机端')
   }
 
   const handleLuckyDraw = () => {
@@ -871,6 +884,32 @@ export default function Control() {
                     </Col>
                   )}
                 </Row>
+              </Space>
+            </Card>
+
+            {/* System Message */}
+            <Card title="💬 系统消息" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: 0 }}>
+                  向所有手机端发送系统提示消息，显示在用户界面顶部
+                </p>
+                <Input.TextArea
+                  placeholder="输入系统消息内容..."
+                  value={systemMessage}
+                  onChange={(e) => setSystemMessage(e.target.value)}
+                  maxLength={200}
+                  rows={2}
+                  style={{ borderRadius: 8 }}
+                />
+                <Button
+                  type="primary"
+                  onClick={handleSendSystemMessage}
+                  block
+                  size="large"
+                  style={{ ...styles.actionBtn, background: '#13c2c2' }}
+                >
+                  💬 发送系统消息
+                </Button>
               </Space>
             </Card>
 
