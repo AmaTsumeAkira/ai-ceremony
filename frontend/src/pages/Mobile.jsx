@@ -238,8 +238,6 @@ export default function Mobile() {
         {/* Avatar Section */}
         <div style={styles.avatarSection}>
           <FaceUploader
-            socket={socket}
-            emit={emit}
             nickname={nickname}
             userId={userId}
             avatarUrl={avatarUrl}

@@ -13,6 +13,16 @@ export default function LuckyDrawOverlay({ socket }) {
   const [displayNickname, setDisplayNickname] = useState('');
   const spinRef = useRef(null);
   const allUsersRef = useRef([]);
+  const autoCloseRef = useRef(null);
+
+  const handleClose = () => {
+    if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
+    autoCloseRef.current = null;
+    setActive(false);
+    setWinners([]);
+    setPhase('spinning');
+    setDisplayNickname('');
+  };
 
   // Fetch all users for spinning effect
   useEffect(() => {
@@ -63,6 +73,19 @@ export default function LuckyDrawOverlay({ socket }) {
       if (spinRef.current) clearInterval(spinRef.current);
     };
   }, [socket]);
+
+  // 5秒自动关闭
+  useEffect(() => {
+    if (phase === 'done' && active) {
+      if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
+      autoCloseRef.current = setTimeout(() => {
+        handleClose();
+      }, 5000);
+    }
+    return () => {
+      if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
+    };
+  }, [phase, active]);
 
   if (!active) return null;
 
@@ -166,6 +189,28 @@ export default function LuckyDrawOverlay({ socket }) {
           }}>
             {EMOJI_CELEBRATE.slice(0, 5).join(' ')} 恭喜中奖！ {EMOJI_CELEBRATE.slice(5).join(' ')}
           </div>
+
+          {/* 关闭按钮（仅 done 阶段显示） */}
+          {phase === 'done' && (
+            <button
+              onClick={handleClose}
+              style={{
+                marginTop: '30px',
+                padding: '12px 40px',
+                fontSize: '18px',
+                fontWeight: 600,
+                color: '#fff',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '24px',
+                cursor: 'pointer',
+                letterSpacing: '2px',
+                transition: 'all 0.3s',
+              }}
+            >
+              ✕ 关闭（5秒后自动关闭）
+            </button>
+          )}
         </div>
       )}
 

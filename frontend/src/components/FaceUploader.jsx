@@ -7,15 +7,20 @@ const SERVER_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:6588'
   : `${window.location.protocol}//${window.location.hostname}:6588`
 
-export default function FaceUploader({ socket, emit, nickname, userId, avatarUrl, onUploaded }) {
+export default function FaceUploader({ nickname, userId, avatarUrl, onUploaded }) {
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(avatarUrl || null)
   const [progress, setProgress] = useState(0)
   const fileInputRef = useRef(null)
+  const uploadingRef = useRef(false) // 防止重复上传
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // 防止重复上传
+    if (uploadingRef.current) return
+    uploadingRef.current = true
 
     // Validate
     if (!file.type.startsWith('image/')) {
@@ -56,6 +61,7 @@ export default function FaceUploader({ socket, emit, nickname, userId, avatarUrl
     } finally {
       setUploading(false)
       setProgress(0)
+      uploadingRef.current = false
     }
   }
 

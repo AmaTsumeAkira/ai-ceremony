@@ -114,19 +114,31 @@ function setupSocket(io) {
         if (!nickname || !nickname.trim()) {
           return socket.emit('error', { message: 'nickname 不能为空' });
         }
+
+        // 昵称去重：若已存在则追加数字后缀
+        let finalNickname = nickname.trim();
+        const existing = db.prepare('SELECT nickname FROM users WHERE nickname = ?').get(finalNickname);
+        if (existing) {
+          let suffix = 2;
+          while (db.prepare('SELECT nickname FROM users WHERE nickname = ?').get(`${finalNickname}_${suffix}`)) {
+            suffix++;
+          }
+          finalNickname = `${finalNickname}_${suffix}`;
+        }
+
         const stmt = db.prepare(
           'INSERT INTO users (nickname, socket_id) VALUES (?, ?)'
         );
-        const result = stmt.run(nickname.trim(), socket.id);
+        const result = stmt.run(finalNickname, socket.id);
         socket.userId = result.lastInsertRowid;
-        socket.userNickname = nickname.trim();
+        socket.userNickname = finalNickname;
         socket.userType = 'user';
         socket.join('users');
 
-        socket.emit('user:joined', { id: result.lastInsertRowid, nickname: nickname.trim() });
+        socket.emit('user:joined', { id: result.lastInsertRowid, nickname: finalNickname });
         broadcastUsersCount(io);
-        logEvent('user_join', { nickname: nickname.trim(), id: result.lastInsertRowid });
-        console.log(`[User] ${nickname} joined, id=${result.lastInsertRowid}`);
+        logEvent('user_join', { nickname: finalNickname, id: result.lastInsertRowid });
+        console.log(`[User] ${finalNickname} joined, id=${result.lastInsertRowid}`);
       } catch (err) {
         socket.emit('error', { message: err.message });
       }
