@@ -7,6 +7,7 @@ import EmojiFloat from '../components/EmojiFloat';
 import CountdownOverlay from '../components/CountdownOverlay';
 import AnnouncementOverlay from '../components/AnnouncementOverlay';
 import LuckyDrawOverlay from '../components/LuckyDrawOverlay';
+import QRCode from 'qrcode';
 import axios from 'axios';
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -19,10 +20,21 @@ const JOIN_URL = window.location.hostname === 'localhost'
 
 const EMOJI_POOL = ['😀', '🎉', '🔥', '💯', '⭐', '🎊', '🚀', '💎', '🌟', '🎯', '🏆', '✨', '💫', '🎪', '🎭'];
 
-// Simple QR Code component
-function QRCode({ url, size = 160 }) {
+// QR Code component using local qrcode library
+function QRCodeDisplay({ url, size = 160 }) {
+  const [dataUrl, setDataUrl] = useState('');
   const [error, setError] = useState(false);
-  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=000000&color=ffffff&qzone=2`;
+
+  useEffect(() => {
+    QRCode.toDataURL(url, {
+      width: size,
+      margin: 1,
+      color: { dark: '#ffffff', light: '#00000000' },
+    })
+      .then(setDataUrl)
+      .catch(() => setError(true));
+  }, [url, size]);
+
   if (error) {
     return (
       <div style={{
@@ -36,9 +48,10 @@ function QRCode({ url, size = 160 }) {
       </div>
     );
   }
+
   return (
     <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <img src={src} alt="QR Code" width={size} height={size} style={{ borderRadius: 6, display: 'block' }} onError={() => setError(true)} />
+      {dataUrl && <img src={dataUrl} alt="QR Code" width={size} height={size} style={{ borderRadius: 6, display: 'block' }} />}
       <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 6 }}>扫码加入互动</div>
     </div>
   );
@@ -152,7 +165,7 @@ export default function Display() {
         position: 'absolute', bottom: 20, left: 20,
         zIndex: 50, opacity: showQR ? 0.8 : 0, transition: 'opacity 1s',
       }}>
-        <QRCode url={JOIN_URL} size={120} />
+        <QRCodeDisplay url={JOIN_URL} size={120} />
       </div>
 
       {/* ShatterCanvas */}

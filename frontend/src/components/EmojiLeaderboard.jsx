@@ -15,7 +15,9 @@ export default function EmojiLeaderboard({ socket }) {
   const loadStats = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(`${API_BASE}/api/emoji/stats`)
+      const pwd = sessionStorage.getItem('ceremony_password');
+      const headers = pwd ? { Authorization: `Bearer ${pwd}` } : {};
+      const res = await axios.get(`${API_BASE}/api/emoji/stats`, { headers })
       setStats(res.data.stats || [])
       setTotal(res.data.total || 0)
     } catch (e) { /* ignore */ }

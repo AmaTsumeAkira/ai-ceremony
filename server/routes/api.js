@@ -103,8 +103,8 @@ router.get('/system/state', (req, res) => {
   res.json(state);
 });
 
-// GET /api/emoji/stats — Emoji 反应统计
-router.get('/emoji/stats', (req, res) => {
+// GET /api/emoji/stats — Emoji 反应统计（需认证）
+router.get('/emoji/stats', requireExportAuth, (req, res) => {
   try {
     const rows = db.prepare(
       `SELECT event_data, COUNT(*) as cnt 
@@ -126,8 +126,8 @@ router.get('/emoji/stats', (req, res) => {
   }
 });
 
-// GET /api/stats — 统计数据
-router.get('/stats', (req, res) => {
+// GET /api/stats — 统计数据（需认证）
+router.get('/stats', requireExportAuth, (req, res) => {
   const io = req.app.get('io');
   const onlineCount = io ? io.sockets.sockets.size : 0;
   const danmakuCount = db.prepare('SELECT COUNT(*) as count FROM danmaku').get().count;
@@ -179,8 +179,8 @@ function requireExportAuth(req, res, next) {
   next();
 }
 
-// GET /api/logs — 活动日志（最近100条）
-router.get('/logs', (req, res) => {
+// GET /api/logs — 活动日志（最近100条，需认证）
+router.get('/logs', requireExportAuth, (req, res) => {
   const limit = Math.max(1, Math.min(Number(req.query.limit) || 100, 500));
   const type = req.query.type; // optional filter by event_type
   let rows;

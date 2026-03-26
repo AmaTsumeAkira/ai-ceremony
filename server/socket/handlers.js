@@ -9,6 +9,7 @@ let threshold = (() => {
   } catch { return 1000; }
 })();
 let decayInterval = null;
+let countdownToken = null; // 倒计时完成时 display 端需提供的令牌
 
 // ========== 活动日志 ==========
 function logEvent(eventType, eventData) {
@@ -161,6 +162,11 @@ function setupSocket(io) {
         const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!matches) return socket.emit('error', { message: 'base64 格式错误' });
 
+        // 防止超大 payload 拒绝服务：先检查 base64 字符串长度（约 6.7MB 对应 5MB 原图）
+        if (matches[2].length > 5 * 1024 * 1024 * 4 / 3) {
+          return socket.emit('error', { message: '图片数据过大，不能超过 5MB' });
+        }
+
         const allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         const imgExt = matches[1].split('/')[1] === 'jpeg' ? 'jpg' : matches[1].split('/')[1];
         if (!allowedTypes.includes(imgExt)) {
@@ -216,6 +222,9 @@ function checkDanmakuRate(socketId) {
         const { content, color } = data;
         if (!content || !content.trim()) {
           return socket.emit('error', { message: '弹幕内容不能为空' });
+        }
+        if (content.trim().length > 100) {
+          return socket.emit('error', { message: '弹幕内容不能超过 100 个字符' });
         }
         const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : '#ffffff';
 
@@ -424,12 +433,7 @@ function checkDanmakuRate(socketId) {
 
     // ========== 麦克风音量 ==========
     socket.on('control:voice-level', requireAuth((data) => {
-      const { level, threshold: shoutThreshold, energyThreshold: clientEnergyThreshold } = data;
-      // 同步客户端设置的阈值
-      if (typeof clientEnergyThreshold === 'number' && clientEnergyThreshold > 0 && clientEnergyThreshold !== threshold) {
-        threshold = clientEnergyThreshold;
-        db.prepare("UPDATE system_state SET value = ? WHERE key = 'threshold'").run(String(threshold));
-      }
+      const { level, threshold: shoutThreshold } = data;
       // shoutThreshold: 音量门限，低于此值不计入能量
       const minLevel = typeof shoutThreshold === 'number' ? shoutThreshold : 0;
       if (typeof level === 'number' && level >= 0 && level <= 100 && level >= minLevel) {
@@ -452,24 +456,33 @@ function checkDanmakuRate(socketId) {
     socket.on('control:countdown', requireAuth((data) => {
       const { seconds } = data;
       if (typeof seconds === 'number' && seconds > 0 && seconds <= 60) {
-        io.emit('display:countdown', { seconds });
+        // 生成一次性令牌，用于 display 端完成倒计时后验证
+        countdownToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        io.emit('display:countdown', { seconds, token: countdownToken });
         logEvent('countdown', { seconds });
         console.log(`[Control] countdown started: ${seconds}s`);
       }
     }));
 
     socket.on('control:countdown-cancel', requireAuth(() => {
+      countdownToken = null;
       io.emit('display:countdown-cancel');
       console.log('[Control] countdown cancelled');
     }));
 
-    // 倒计时结束自动触发碎裂（display 端通知）
-    socket.on('display:countdown-done', () => {
-      // 仅允许 display 类型的 socket 触发
+    // 倒计时结束自动触发碎裂（display 端通知，需提供令牌）
+    socket.on('display:countdown-done', (data) => {
       if (socket.userType !== 'display') {
         console.log(`[Security] unauthorized countdown-done from ${socket.id}`);
         return;
       }
+      // 验证倒计时令牌
+      const { token } = data || {};
+      if (!countdownToken || token !== countdownToken) {
+        console.log(`[Security] invalid countdown token from ${socket.id}`);
+        return;
+      }
+      countdownToken = null; // 令牌一次性使用
       db.prepare("UPDATE system_state SET value = 'shatter' WHERE key = 'mode'").run();
       energy = 0;
       io.emit('shatter:start');

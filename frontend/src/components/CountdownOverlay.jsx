@@ -8,8 +8,11 @@ export default function CountdownOverlay({ socket }) {
   useEffect(() => {
     if (!socket) return;
 
+    let countdownToken = null;
+
     const handleCountdown = (data) => {
-      const { seconds } = data;
+      const { seconds, token } = data;
+      countdownToken = token || null;
       if (seconds > 0) {
         setActive(true);
         setCurrent(seconds);
@@ -24,7 +27,7 @@ export default function CountdownOverlay({ socket }) {
               // 倒计时结束，通知服务端触发 shatter
               setTimeout(() => {
                 setActive(false);
-                socket.emit('display:countdown-done');
+                socket.emit('display:countdown-done', { token: countdownToken });
               }, 800);
               return 0;
             }

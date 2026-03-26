@@ -210,8 +210,10 @@ export default function Control() {
   useEffect(() => {
     const loadStats = async () => {
       try {
+        const pwd = sessionStorage.getItem('ceremony_password');
+        const headers = pwd ? { Authorization: `Bearer ${pwd}` } : {};
         const [statsRes, stateRes] = await Promise.all([
-          axios.get(`${API_BASE}/api/stats`),
+          axios.get(`${API_BASE}/api/stats`, { headers }),
           axios.get(`${API_BASE}/api/system/state`),
         ])
         const stats = statsRes.data
@@ -224,7 +226,9 @@ export default function Control() {
     }
     const loadLogs = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/logs?limit=50`)
+        const pwd = sessionStorage.getItem('ceremony_password');
+        const headers = pwd ? { Authorization: `Bearer ${pwd}` } : {};
+        const res = await axios.get(`${API_BASE}/api/logs?limit=50`, { headers })
         setActivityLogs(res.data)
       } catch (e) { /* ignore */ }
     }
@@ -437,7 +441,9 @@ export default function Control() {
     if (!authenticated) return
     const interval = setInterval(async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/logs?limit=50`)
+        const pwd = sessionStorage.getItem('ceremony_password');
+        const headers = pwd ? { Authorization: `Bearer ${pwd}` } : {};
+        const res = await axios.get(`${API_BASE}/api/logs?limit=50`, { headers })
         setActivityLogs(res.data)
       } catch (e) { /* ignore */ }
     }, 8000)
