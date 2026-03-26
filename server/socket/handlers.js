@@ -360,7 +360,26 @@ function checkDanmakuRate(socketId) {
     }));
 
     // ========== Emoji 飘屏 ==========
+    // Emoji 速率限制：每个 socket 每秒最多 3 个
+    const emojiRateLimit = new Map(); // socketId -> { count, windowStart }
+    const EMOJI_MAX_PER_SEC = 3;
+
+    function checkEmojiRate(socketId) {
+      const now = Date.now();
+      const entry = emojiRateLimit.get(socketId);
+      if (!entry || now - entry.windowStart > 1000) {
+        emojiRateLimit.set(socketId, { count: 1, windowStart: now });
+        return true;
+      }
+      if (entry.count >= EMOJI_MAX_PER_SEC) return false;
+      entry.count++;
+      return true;
+    }
+
     socket.on('emoji:send', (data) => {
+      if (!checkEmojiRate(socket.id)) {
+        return socket.emit('error', { message: 'Emoji 发送太快了，请稍候' });
+      }
       const { emoji } = data;
       if (typeof emoji === 'string' && emoji.trim()) {
         io.emit('emoji:float', {
@@ -477,6 +496,7 @@ function checkDanmakuRate(socketId) {
     socket.on('disconnect', () => {
       authenticatedSockets.delete(socket.id);
       danmakuRateLimit.delete(socket.id);
+      emojiRateLimit.delete(socket.id);
       if (socket.userId) {
         db.prepare('UPDATE users SET socket_id = NULL WHERE id = ?').run(socket.userId);
       }

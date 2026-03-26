@@ -63,6 +63,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// 静态资源兜底（favicon.svg 等）
+app.use(express.static(distPath));
+
 // 404 兜底
 app.use((req, res) => {
   res.status(404).sendFile(path.join(distPath, 'index.html'));

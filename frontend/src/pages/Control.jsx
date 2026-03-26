@@ -116,7 +116,7 @@ export default function Control() {
 
   // ========== Auth ==========
   useEffect(() => {
-    const saved = localStorage.getItem('ceremony_password')
+    const saved = sessionStorage.getItem('ceremony_password')
     if (saved) {
       setPassword(saved)
     }
@@ -129,11 +129,11 @@ export default function Control() {
     const handleAuthResult = (data) => {
       if (data.ok) {
         setAuthenticated(true)
-        localStorage.setItem('ceremony_password', password)
+        sessionStorage.setItem('ceremony_password', password)
         antMessage.success('认证成功')
       } else {
         setAuthenticated(false)
-        localStorage.removeItem('ceremony_password')
+        sessionStorage.removeItem('ceremony_password')
         antMessage.error(data.message || '密码错误')
       }
     }
@@ -148,7 +148,7 @@ export default function Control() {
     socket.on('control:registered', handleRegistered)
 
     // Check saved password on connect
-    const saved = localStorage.getItem('ceremony_password')
+    const saved = sessionStorage.getItem('ceremony_password')
     if (saved) {
       socket.emit('control:auth', { password: saved })
     }
@@ -365,7 +365,7 @@ export default function Control() {
   const downloadCSV = async (url, filename) => {
     try {
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('ceremony_password')}` },
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('ceremony_password')}` },
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
@@ -422,7 +422,7 @@ export default function Control() {
   const handleClearLogs = async () => {
     try {
       await axios.delete(`${API_BASE}/api/logs`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('ceremony_password')}` },
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('ceremony_password')}` },
       })
       setActivityLogs([])
       antMessage.success('活动日志已清空')

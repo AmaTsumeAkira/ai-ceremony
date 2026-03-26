@@ -74,13 +74,13 @@ export default function LuckyDrawOverlay({ socket }) {
     };
   }, [socket]);
 
-  // 5秒自动关闭
+  // 30秒自动关闭
   useEffect(() => {
     if (phase === 'done' && active) {
       if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
       autoCloseRef.current = setTimeout(() => {
         handleClose();
-      }, 5000);
+      }, 30000);
     }
     return () => {
       if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
@@ -208,7 +208,7 @@ export default function LuckyDrawOverlay({ socket }) {
                 transition: 'all 0.3s',
               }}
             >
-              ✕ 关闭（5秒后自动关闭）
+              ✕ 关闭（30秒后自动关闭）
             </button>
           )}
         </div>
