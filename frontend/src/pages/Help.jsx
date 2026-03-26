@@ -114,7 +114,7 @@ const Help = () => {
             <tbody>
               <tr style={trStyle}><td style={tdLabel}>打开方式</td><td>浏览器访问 /display，建议全屏（F11）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>二维码</td><td>左下角浮动二维码，观众扫码加入</td></tr>
-              <tr style={trStyle}><td style={tdLabel}>在线人数</td><td>右上角实时显示当前在线连接数（观众+控制端）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>在线人数</td><td>右上角实时显示当前在线连接数（观众+控制端），点击可展开在线观众昵称列表</td></tr>
               <tr style={trStyle}><td style={tdLabel}>粒子文字</td><td>默认显示"AIGC 数字素养大赛"，控制台可改</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕</td><td>观众发送的弹幕自动飘过屏幕</td></tr>
               <tr style={trStyle}><td style={tdLabel}>Emoji</td><td>观众发送的 Emoji 从底部飘起</td></tr>

@@ -77,16 +77,21 @@ export default function Display() {
   const [showQR, setShowQR] = useState(true);
   const [mosaicPreview, setMosaicPreview] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showUserList, setShowUserList] = useState(false);
+  const userListTimerRef = useRef(null);
 
   useEffect(() => {
     if (!socket) return;
     socket.emit('display:register');
 
+    const handleMosaicUpdate = () => { setMode('mosaic'); };
+
     socket.on('mode:changed', (data) => { setMode(data.mode); });
     socket.on('shatter:start', () => { setMode('shatter'); });
     socket.on('shatter:progress', (progress) => { setRebuildProgress(typeof progress === 'number' ? progress : 0); });
     socket.on('face:new', () => { loadFaces(); });
-    socket.on('mosaic:update', () => { setMode('mosaic'); });
+    socket.on('mosaic:update', handleMosaicUpdate);
 
     socket.on('display:text-changed', (data) => { setParticleText(data.text); });
     socket.on('display:background-changed', (data) => { setBackgroundUrl(data.url || ''); });
@@ -98,6 +103,7 @@ export default function Display() {
 
     socket.on('display:mosaic-preview', (data) => { setMosaicPreview(!!data.enabled); });
     socket.on('control:users-count', (count) => { setOnlineCount(count); });
+    socket.on('display:online-users', (users) => { setOnlineUsers(users || []); });
 
     socket.on('control:state', (state) => {
       if (state.mode) setMode(state.mode);
@@ -110,13 +116,14 @@ export default function Display() {
       socket.off('shatter:start');
       socket.off('shatter:progress');
       socket.off('face:new');
-      socket.off('mosaic:update');
+      socket.off('mosaic:update', handleMosaicUpdate);
       socket.off('display:text-changed');
       socket.off('display:background-changed');
       socket.off('agenda:changed');
       socket.off('display:mosaic-preview');
       socket.off('control:state');
       socket.off('control:users-count');
+      socket.off('display:online-users');
     };
   }, [socket]);
 
@@ -128,6 +135,13 @@ export default function Display() {
   };
 
   useEffect(() => { loadFaces(); }, []);
+
+  // Cleanup user list timer on unmount
+  useEffect(() => {
+    return () => {
+      if (userListTimerRef.current) clearTimeout(userListTimerRef.current);
+    };
+  }, []);
 
   const isMosaicMode = mode === 'mosaic' || mosaicPreview;
 
@@ -151,7 +165,24 @@ export default function Display() {
         display: 'flex', alignItems: 'center', gap: 8,
         zIndex: 1000, opacity: 0.6,
       }}>
-        <span style={{ color: '#fff', fontSize: 12, fontFamily: 'monospace' }}>
+        <span
+          style={{
+            color: '#fff', fontSize: 12, fontFamily: 'monospace', cursor: 'pointer',
+            padding: '2px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.08)',
+            transition: 'opacity 0.2s',
+          }}
+          onClick={() => {
+            const next = !showUserList;
+            setShowUserList(next);
+            if (next) {
+              if (userListTimerRef.current) clearTimeout(userListTimerRef.current);
+              userListTimerRef.current = setTimeout(() => setShowUserList(false), 5000);
+            } else {
+              if (userListTimerRef.current) clearTimeout(userListTimerRef.current);
+            }
+          }}
+          title="点击查看在线用户"
+        >
           👥 {onlineCount}
         </span>
         <div style={{
@@ -159,6 +190,42 @@ export default function Display() {
           background: connected ? '#00ff88' : '#ff4444',
         }} />
       </div>
+
+      {/* Online users list panel */}
+      {showUserList && onlineUsers.length > 0 && (
+        <div style={{
+          position: 'absolute', top: 40, right: 10,
+          zIndex: 1001, width: 180, maxHeight: 300,
+          background: 'rgba(0,0,0,0.75)', borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(10px)', padding: '10px 12px',
+          overflowY: 'auto', scrollbarWidth: 'thin',
+          animation: 'fadeInScale 0.3s ease-out',
+        }}>
+          <div style={{
+            color: 'rgba(255,255,255,0.6)', fontSize: 11, marginBottom: 8,
+            borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 6,
+            letterSpacing: '1px',
+          }}>
+            在线观众 ({onlineUsers.length})
+          </div>
+          {onlineUsers.map((u, i) => (
+            <div key={u.id || i} style={{
+              color: '#fff', fontSize: 13, padding: '4px 0',
+              display: 'flex', alignItems: 'center', gap: 6,
+              borderBottom: i < onlineUsers.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#00ff88', flexShrink: 0,
+              }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {u.nickname}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* QR Code */}
       <div style={{

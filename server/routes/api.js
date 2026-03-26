@@ -18,8 +18,9 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    const allowedExt = /\.(jpg|jpeg|png|gif|webp)$/i;
+    const allowedMime = /^image\/(jpeg|png|gif|webp)$/i;
+    if (allowedExt.test(path.extname(file.originalname)) && allowedMime.test(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('只支持图片文件'));
@@ -148,8 +149,9 @@ const bgUpload = multer({
   storage: bgStorage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    const allowedExt = /\.(jpg|jpeg|png|gif|webp)$/i;
+    const allowedMime = /^image\/(jpeg|png|gif|webp)$/i;
+    if (allowedExt.test(path.extname(file.originalname)) && allowedMime.test(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('只支持图片文件'));

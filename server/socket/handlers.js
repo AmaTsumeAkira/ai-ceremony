@@ -39,6 +39,14 @@ function broadcastState(io) {
 
 function broadcastUsersCount(io) {
   io.emit('control:users-count', io.sockets.sockets.size);
+  // Broadcast online user list for display page
+  const users = [];
+  for (const [, s] of io.sockets.sockets) {
+    if (s.userType === 'user' && s.userNickname) {
+      users.push({ id: s.userId, nickname: s.userNickname });
+    }
+  }
+  io.emit('display:online-users', users);
 }
 
 function setupSocket(io) {

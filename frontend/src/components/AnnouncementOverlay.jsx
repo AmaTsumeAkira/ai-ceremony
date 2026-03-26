@@ -14,6 +14,7 @@ export default function AnnouncementOverlay({ socket }) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
         setActive(false);
+        timeoutRef.current = null;
       }, (data.duration || 5) * 1000);
     };
 
