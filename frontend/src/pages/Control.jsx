@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons'
 import { useSocket } from '../hooks/useSocket'
 import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
+import EmojiLeaderboard from '../components/EmojiLeaderboard'
 import axios from 'axios'
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -660,6 +661,9 @@ export default function Control() {
 
             {/* Danmaku Leaderboard */}
             <DanmakuLeaderboard socket={socket} />
+
+            {/* Emoji Leaderboard */}
+            <EmojiLeaderboard socket={socket} />
 
             {/* Volume Visualizer */}
             <Card title="🎙️ 实时音量" style={styles.card} size="small">

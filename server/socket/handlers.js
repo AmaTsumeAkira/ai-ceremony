@@ -114,6 +114,12 @@ function setupSocket(io) {
         if (!nickname || !nickname.trim()) {
           return socket.emit('error', { message: 'nickname 不能为空' });
         }
+        if (nickname.trim().length > 12) {
+          return socket.emit('error', { message: '昵称不能超过 12 个字符' });
+        }
+        if (nickname.trim().length < 1) {
+          return socket.emit('error', { message: '昵称不能为空' });
+        }
 
         // 昵称去重：若已存在则追加数字后缀
         let finalNickname = nickname.trim();
@@ -303,7 +309,7 @@ function checkDanmakuRate(socketId) {
 
     socket.on('control:set-mode', requireAuth((data) => {
       const { mode } = data;
-      const validModes = ['idle', 'shatter', 'rebuild', 'mosaic', 'danmaku'];
+      const validModes = ['idle', 'shatter', 'rebuild', 'mosaic', 'danmaku', 'climax'];
       if (validModes.includes(mode)) {
         db.prepare("UPDATE system_state SET value = ? WHERE key = 'mode'").run(mode);
         io.emit('mode:changed', { mode });
@@ -387,6 +393,20 @@ function checkDanmakuRate(socketId) {
           nickname: socket.userNickname || '匿名',
           x: 0.2 + Math.random() * 0.6,
         });
+        logEvent('emoji_send', { emoji: emoji.trim(), nickname: socket.userNickname || '匿名' });
+        // 更新 emoji 统计并广播
+        try {
+          const emojiStats = db.prepare(
+            `SELECT event_data, COUNT(*) as cnt FROM ceremony_logs WHERE event_type = 'emoji_send' GROUP BY event_data ORDER BY cnt DESC LIMIT 10`
+          ).all();
+          const stats = emojiStats.map(r => {
+            let em = r.event_data;
+            try { const p = JSON.parse(r.event_data); em = p.emoji; } catch {}
+            return { emoji: em, count: r.cnt };
+          });
+          const totalCount = db.prepare("SELECT COUNT(*) as c FROM ceremony_logs WHERE event_type = 'emoji_send'").get().c;
+          io.emit('emoji:stats', { stats, total: totalCount });
+        } catch {}
         console.log(`[Emoji] ${socket.userNickname || '匿名'}: ${emoji.trim()}`);
       }
     });
@@ -445,11 +465,17 @@ function checkDanmakuRate(socketId) {
 
     // 倒计时结束自动触发碎裂（display 端通知）
     socket.on('display:countdown-done', () => {
+      // 仅允许 display 类型的 socket 触发
+      if (socket.userType !== 'display') {
+        console.log(`[Security] unauthorized countdown-done from ${socket.id}`);
+        return;
+      }
       db.prepare("UPDATE system_state SET value = 'shatter' WHERE key = 'mode'").run();
       energy = 0;
       io.emit('shatter:start');
       io.emit('shatter:progress', 0);
       broadcastState(io);
+      logEvent('shatter', { trigger: 'countdown-done' });
       console.log('[Display] countdown done, auto-shatter triggered');
     });
 

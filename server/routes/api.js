@@ -80,7 +80,7 @@ router.get('/danmaku/recent', (req, res) => {
 
 // GET /api/danmaku/leaderboard — 弹幕排行榜
 router.get('/danmaku/leaderboard', (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 100));
   const rows = db.prepare(
     `SELECT u.id, u.nickname, u.face_url, COUNT(d.id) as danmaku_count
      FROM danmaku d
@@ -101,6 +101,29 @@ router.get('/system/state', (req, res) => {
     state[row.key] = row.value;
   }
   res.json(state);
+});
+
+// GET /api/emoji/stats — Emoji 反应统计
+router.get('/emoji/stats', (req, res) => {
+  try {
+    const rows = db.prepare(
+      `SELECT event_data, COUNT(*) as cnt 
+       FROM ceremony_logs 
+       WHERE event_type = 'emoji_send' 
+       GROUP BY event_data 
+       ORDER BY cnt DESC 
+       LIMIT 20`
+    ).all();
+    const stats = rows.map(r => {
+      let emoji = r.event_data;
+      try { const p = JSON.parse(r.event_data); emoji = p.emoji; } catch {}
+      return { emoji, count: r.cnt };
+    });
+    const totalCount = db.prepare("SELECT COUNT(*) as c FROM ceremony_logs WHERE event_type = 'emoji_send'").get().c;
+    res.json({ stats, total: totalCount });
+  } catch {
+    res.json({ stats: [], total: 0 });
+  }
 });
 
 // GET /api/stats — 统计数据
@@ -158,7 +181,7 @@ function requireExportAuth(req, res, next) {
 
 // GET /api/logs — 活动日志（最近100条）
 router.get('/logs', (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 100, 500));
   const type = req.query.type; // optional filter by event_type
   let rows;
   if (type) {
