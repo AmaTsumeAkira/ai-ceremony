@@ -75,6 +75,7 @@ export default function CountdownOverlay({ socket }) {
         letterSpacing: '0.05em',
       }}>
         {current}
+        <span style={{ fontSize: 'clamp(30px, 10vw, 100px)', opacity: 0.6, marginLeft: '0.05em' }}>秒</span>
       </div>
       <style>{`
         @keyframes countdownPulse {

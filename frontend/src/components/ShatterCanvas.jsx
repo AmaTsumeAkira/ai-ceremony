@@ -71,6 +71,7 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
   const animFrameRef = useRef(null)
   const stateRef = useRef('idle') // idle, shattering, rebuilding
   const progressRef = useRef(0)
+  const textRef = useRef(particleText)
   const clockRef = useRef(new THREE.Clock())
   const visibleRef = useRef(visible)
 
@@ -326,6 +327,39 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
       stateRef.current = 'idle'
     }
   }, [mode])
+
+  // React to particleText changes — regenerate targets without remounting
+  useEffect(() => {
+    textRef.current = particleText
+    const p = particlesRef.current
+    if (!p || !rendererRef.current) return
+
+    const container = containerRef.current
+    if (!container) return
+
+    const width = container.clientWidth
+    const height = container.clientHeight
+    const textPoints = generateTextParticles(particleText, 1024, 512)
+    const count = Math.min(PARTICLE_COUNT, textPoints.length)
+
+    // Update targets and velocities
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const tp = textPoints[i]
+      p.targets[i3] = tp.x
+      p.targets[i3 + 1] = tp.y
+      p.targets[i3 + 2] = tp.z
+    }
+
+    // Trigger rebuild animation to morph into new text
+    stateRef.current = 'rebuilding'
+    for (let i = 0; i < p.count; i++) {
+      const i3 = i * 3
+      p.velocities[i3] = 0
+      p.velocities[i3 + 1] = 0
+      p.velocities[i3 + 2] = 0
+    }
+  }, [particleText])
 
   return (
     <div

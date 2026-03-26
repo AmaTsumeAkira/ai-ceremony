@@ -71,7 +71,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>模式切换</td><td>idle / shatter / rebuild / mosaic / danmaku</td></tr>
               <tr style={trStyle}><td style={tdLabel}>自定义文字</td><td>修改大屏粒子文字内容，回车确认</td></tr>
               <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>设定秒数后启动倒计时，结束后自动碎裂；可随时取消</td></tr>
-              <tr style={trStyle}><td style={tdLabel}>能量条</td><td>麦克风音量驱动，满值自动触发重建</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>能量条</td><td>麦克风音量驱动，满值自动触发重建；阈值可实时调整并同步至服务器</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕管理</td><td>一键清空所有弹幕</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克预览</td><td>无头像时用 Emoji 填充预览效果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>背景上传</td><td>上传自定义背景图替换大屏背景</td></tr>
@@ -109,6 +109,7 @@ const Help = () => {
             <tbody>
               <tr style={trStyle}><td style={tdLabel}>打开方式</td><td>浏览器访问 /display，建议全屏（F11）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>二维码</td><td>左下角浮动二维码，观众扫码加入</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>在线人数</td><td>右上角实时显示当前在线连接数（观众+控制端）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>粒子文字</td><td>默认显示"AIGC 数字素养大赛"，控制台可改</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕</td><td>观众发送的弹幕自动飘过屏幕</td></tr>
               <tr style={trStyle}><td style={tdLabel}>Emoji</td><td>观众发送的 Emoji 从底部飘起</td></tr>

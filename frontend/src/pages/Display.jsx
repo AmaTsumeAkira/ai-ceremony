@@ -61,6 +61,7 @@ export default function Display() {
   const [agendaStage, setAgendaStage] = useState('');
   const [showQR, setShowQR] = useState(true);
   const [mosaicPreview, setMosaicPreview] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
     if (!socket) return;
@@ -81,6 +82,7 @@ export default function Display() {
     });
 
     socket.on('display:mosaic-preview', (data) => { setMosaicPreview(!!data.enabled); });
+    socket.on('control:users-count', (count) => { setOnlineCount(count); });
 
     socket.on('control:state', (state) => {
       if (state.mode) setMode(state.mode);
@@ -99,6 +101,7 @@ export default function Display() {
       socket.off('agenda:changed');
       socket.off('display:mosaic-preview');
       socket.off('control:state');
+      socket.off('control:users-count');
     };
   }, [socket]);
 
@@ -127,12 +130,20 @@ export default function Display() {
         }} />
       )}
 
-      {/* Connection indicator */}
+      {/* Connection indicator + online count */}
       <div style={{
         position: 'absolute', top: 10, right: 10,
-        width: 10, height: 10, borderRadius: '50%',
-        background: connected ? '#00ff88' : '#ff4444', zIndex: 1000, opacity: 0.5,
-      }} />
+        display: 'flex', alignItems: 'center', gap: 8,
+        zIndex: 1000, opacity: 0.6,
+      }}>
+        <span style={{ color: '#fff', fontSize: 12, fontFamily: 'monospace' }}>
+          👥 {onlineCount}
+        </span>
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%',
+          background: connected ? '#00ff88' : '#ff4444',
+        }} />
+      </div>
 
       {/* QR Code */}
       <div style={{
@@ -145,7 +156,7 @@ export default function Display() {
       {/* ShatterCanvas */}
       {!isMosaicMode && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-          <ShatterCanvas key={particleText} mode={mode} rebuildProgress={rebuildProgress} particleText={particleText} />
+          <ShatterCanvas mode={mode} rebuildProgress={rebuildProgress} particleText={particleText} />
         </div>
       )}
 

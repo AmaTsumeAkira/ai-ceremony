@@ -570,7 +570,7 @@ export default function Control() {
                 </div>
                 <div>
                   <div style={styles.sliderLabel}><span>⚡ 能量阈值</span></div>
-                  <InputNumber value={energyThreshold} onChange={setEnergyThreshold} min={0} max={10000} style={{ width: '100%' }} />
+                  <InputNumber value={energyThreshold} onChange={(v) => { setEnergyThreshold(v); if (v > 0) emit('control:set-energy-threshold', { value: v }); }} min={1} max={10000} style={{ width: '100%' }} />
                 </div>
               </Space>
             </Card>
@@ -750,7 +750,7 @@ const styles = {
   headerIcon: { fontSize: '24px', color: '#40a9ff' },
   headerTitle: { fontSize: '20px', fontWeight: '700', color: '#fff', flex: 1, letterSpacing: '2px' },
   connTag: { borderRadius: '20px' },
-  body: { display: 'flex', gap: '16px', minHeight: 'calc(100vh - 100px)' },
+  body: { display: 'flex', gap: '16px', minHeight: 'calc(100vh - 100px)', overflowY: 'auto', flexWrap: 'wrap' },
   leftPanel: { flex: '1', minWidth: '360px', display: 'flex', flexDirection: 'column', gap: '16px' },
   rightPanel: { flex: '1', minWidth: '360px', display: 'flex', flexDirection: 'column', gap: '16px' },
   card: { background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' },
