@@ -404,6 +404,12 @@ export default function Control() {
     }
   }
 
+  const handleExportCheckin = async () => {
+    if (await downloadCSV(`${API_BASE}/api/export/checkin`, `checkin_export_${Date.now()}.csv`)) {
+      antMessage.success('签到记录已导出')
+    }
+  }
+
   const getModeColor = (mode) => {
     const colors = { idle: '#666', speaker: '#722ed1', climax: '#f5222d', shatter: '#f5222d', rebuild: '#52c41a', danmaku: '#40a9ff', mosaic: '#722ed1' }
     return colors[mode] || '#666'
@@ -577,6 +583,9 @@ export default function Control() {
                     </Button>
                   </Col>
                 </Row>
+                <Button icon={<DownloadOutlined />} onClick={handleExportCheckin} block style={styles.actionBtn} type="dashed">
+                  📊 批量导出签到记录
+                </Button>
               </Space>
             </Card>
 

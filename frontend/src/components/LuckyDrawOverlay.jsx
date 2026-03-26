@@ -26,7 +26,7 @@ export default function LuckyDrawOverlay({ socket }) {
 
   // Fetch all users for spinning effect
   useEffect(() => {
-    fetch(`${API_BASE}/api/faces`)
+    fetch(`${API_BASE}/api/users`)
       .then(r => r.json())
       .then(data => { allUsersRef.current = data; })
       .catch(() => {});

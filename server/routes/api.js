@@ -59,6 +59,14 @@ router.post('/user/upload-face', upload.single('face'), (req, res) => {
   res.json({ face_url: faceUrl });
 });
 
+// GET /api/users — 获取所有注册用户（含头像和无头像的）
+router.get('/users', (req, res) => {
+  const rows = db.prepare(
+    'SELECT id, nickname, face_url, created_at FROM users ORDER BY created_at DESC'
+  ).all();
+  res.json(rows);
+});
+
 // GET /api/faces — 获取所有已上传头像
 router.get('/faces', (req, res) => {
   const rows = db.prepare(
@@ -199,11 +207,7 @@ router.get('/logs', requireExportAuth, (req, res) => {
 });
 
 // DELETE /api/logs — 清空活动日志
-router.delete('/logs', (req, res) => {
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
-    return res.status(401).json({ error: '未认证' });
-  }
+router.delete('/logs', requireExportAuth, (req, res) => {
   db.prepare('DELETE FROM ceremony_logs').run();
   res.json({ ok: true });
 });
@@ -242,6 +246,28 @@ router.get('/export/danmaku', requireExportAuth, (req, res) => {
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename=danmaku_export_${Date.now()}.csv`);
+  res.send(csv);
+});
+
+// GET /api/export/checkin — 批量导出签到记录为 CSV
+router.get('/export/checkin', requireExportAuth, (req, res) => {
+  const rows = db.prepare(
+    `SELECT u.id, u.nickname, u.face_url, u.created_at AS registered_at,
+            (SELECT COUNT(*) FROM danmaku d WHERE d.user_id = u.id) AS danmaku_count,
+            (SELECT COUNT(*) FROM ceremony_logs cl WHERE cl.event_type = 'emoji_send'
+             AND JSON_EXTRACT(cl.event_data, '$.nickname') = u.nickname) AS emoji_count,
+            CASE WHEN u.face_url IS NOT NULL THEN '是' ELSE '否' END AS has_avatar
+     FROM users u
+     ORDER BY u.created_at ASC`
+  ).all();
+
+  let csv = '\uFEFF序号,用户ID,昵称,是否上传头像,注册时间,弹幕数,Emoji数\n';
+  rows.forEach((row, index) => {
+    csv += `${index + 1},${row.id},"${(row.nickname || '').replace(/"/g, '""')}","${row.has_avatar}","${row.registered_at}",${row.danmaku_count},${row.emoji_count}\n`;
+  });
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=checkin_export_${Date.now()}.csv`);
   res.send(csv);
 });
 
