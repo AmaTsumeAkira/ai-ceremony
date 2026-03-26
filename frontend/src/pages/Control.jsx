@@ -1,0 +1,649 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  ConfigProvider,
+  theme,
+  Button,
+  Slider,
+  InputNumber,
+  Input,
+  Segmented,
+  Progress,
+  Card,
+  Statistic,
+  Row,
+  Col,
+  Tag,
+  Space,
+  message as antMessage,
+} from 'antd'
+import {
+  ThunderboltOutlined,
+  ReloadOutlined,
+  AudioOutlined,
+  AudioMutedOutlined,
+  DeleteOutlined,
+  DashboardOutlined,
+  TeamOutlined,
+  PictureOutlined,
+  MessageOutlined,
+  FireOutlined,
+  UploadOutlined,
+  ClearOutlined,
+  LockOutlined,
+} from '@ant-design/icons'
+import { useSocket } from '../hooks/useSocket'
+import axios from 'axios'
+
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:6588'
+  : `${window.location.protocol}//${window.location.hostname}:6588`
+
+const MODES = [
+  { label: '空闲', value: 'idle' },
+  { label: '讲者', value: 'speaker' },
+  { label: '高潮', value: 'climax' },
+  { label: '破碎', value: 'shatter' },
+  { label: '弹幕', value: 'danmaku' },
+  { label: '马赛克', value: 'mosaic' },
+]
+
+const AGENDA_STAGES = [
+  { key: 'welcome',  label: '开场前',        emoji: '🎬', color: '#40a9ff' },
+  { key: 'review',   label: '循迹·往届回顾', emoji: '📹', color: '#13c2c2' },
+  { key: 'route',    label: '定航·赛道介绍', emoji: '🗺️', color: '#722ed1' },
+  { key: 'inspire',  label: '赋能·领导致辞', emoji: '🎤', color: '#eb2f96' },
+  { key: 'launch',   label: '启跃·启动仪式', emoji: '🚀', color: '#f5222d' },
+  { key: 'closing',  label: '合影留念',      emoji: '📸', color: '#52c41a' },
+]
+
+export default function Control() {
+  const { socket, connected, emit } = useSocket()
+
+  // Auth state
+  const [authenticated, setAuthenticated] = useState(false)
+  const [password, setPassword] = useState('')
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // State
+  const [currentMode, setCurrentMode] = useState('idle')
+  const [onlineUsers, setOnlineUsers] = useState(0)
+  const [avatarCount, setAvatarCount] = useState(0)
+  const [danmakuCount, setDanmakuCount] = useState(0)
+  const [rebuildProgress, setRebuildProgress] = useState(0)
+  const [micEnabled, setMicEnabled] = useState(false)
+  const [shoutThreshold, setShoutThreshold] = useState(50)
+  const [energyThreshold, setEnergyThreshold] = useState(1000)
+  const [currentVolume, setCurrentVolume] = useState(0)
+  const [volumeBars, setVolumeBars] = useState(Array(20).fill(0))
+  const [particleText, setParticleText] = useState('')
+  const [backgroundUrl, setBackgroundUrl] = useState('')
+
+  // Countdown state
+  const [countdownSeconds, setCountdownSeconds] = useState(5)
+  const [countdownActive, setCountdownActive] = useState(false)
+
+  // Mosaic preview state
+  const [mosaicPreview, setMosaicPreview] = useState(false)
+
+  // Audio refs
+  const audioContextRef = useRef(null)
+  const analyserRef = useRef(null)
+  const micStreamRef = useRef(null)
+  const animFrameRef = useRef(null)
+
+  // File input ref for background upload
+  const bgFileRef = useRef(null)
+
+  // ========== Auth ==========
+  useEffect(() => {
+    const saved = localStorage.getItem('ceremony_password')
+    if (saved) {
+      setPassword(saved)
+    }
+    setAuthChecked(true)
+  }, [])
+
+  useEffect(() => {
+    if (!socket || !authChecked) return
+
+    const handleAuthResult = (data) => {
+      if (data.ok) {
+        setAuthenticated(true)
+        localStorage.setItem('ceremony_password', password)
+        antMessage.success('认证成功')
+      } else {
+        setAuthenticated(false)
+        localStorage.removeItem('ceremony_password')
+        antMessage.error(data.message || '密码错误')
+      }
+    }
+
+    const handleRegistered = (data) => {
+      if (data.authenticated) {
+        setAuthenticated(true)
+      }
+    }
+
+    socket.on('control:auth-result', handleAuthResult)
+    socket.on('control:registered', handleRegistered)
+
+    // Check saved password on connect
+    const saved = localStorage.getItem('ceremony_password')
+    if (saved) {
+      socket.emit('control:auth', { password: saved })
+    }
+
+    return () => {
+      socket.off('control:auth-result', handleAuthResult)
+      socket.off('control:registered', handleRegistered)
+    }
+  }, [socket, authChecked])
+
+  const handleLogin = () => {
+    if (!password.trim()) {
+      antMessage.warning('请输入密码')
+      return
+    }
+    emit('control:auth', { password: password.trim() })
+  }
+
+  // ========== Socket listeners ==========
+  useEffect(() => {
+    if (!socket) return
+
+    const handleState = (state) => {
+      if (state.mode) setCurrentMode(state.mode)
+      if (state.energy !== undefined) setRebuildProgress(Number(state.energy) / Number(state.threshold || 1000) * 100)
+      if (state.particleText) setParticleText(state.particleText)
+      if (state.background !== undefined) setBackgroundUrl(state.background)
+    }
+
+    const handleMode = (data) => { setCurrentMode(data.mode) }
+    const handleProgress = (progress) => { setRebuildProgress(typeof progress === 'number' ? progress : 0) }
+    const handleUsersCount = (count) => { setOnlineUsers(count) }
+    const handleShatterStart = () => { setCurrentMode('shatter') }
+
+    socket.on('control:state', handleState)
+    socket.on('mode:changed', handleMode)
+    socket.on('shatter:progress', handleProgress)
+    socket.on('control:users-count', handleUsersCount)
+    socket.on('shatter:start', handleShatterStart)
+
+    socket.emit('control:register')
+
+    return () => {
+      socket.off('control:state', handleState)
+      socket.off('mode:changed', handleMode)
+      socket.off('shatter:progress', handleProgress)
+      socket.off('control:users-count', handleUsersCount)
+      socket.off('shatter:start', handleShatterStart)
+    }
+  }, [socket])
+
+  // Load initial stats
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [statsRes, stateRes] = await Promise.all([
+          axios.get(`${API_BASE}/api/stats`),
+          axios.get(`${API_BASE}/api/system/state`),
+        ])
+        const stats = statsRes.data
+        setOnlineUsers(stats.online || 0)
+        setAvatarCount(stats.faces || 0)
+        setDanmakuCount(stats.danmaku || 0)
+        if (stateRes.data.mode) setCurrentMode(stateRes.data.mode)
+      } catch (e) { /* ignore */ }
+    }
+    loadStats()
+  }, [])
+
+  // ========== Mic ==========
+  const readVolume = useCallback(() => {
+    if (!analyserRef.current) return
+    const analyser = analyserRef.current
+    const dataArray = new Uint8Array(analyser.frequencyBinCount)
+    analyser.getByteFrequencyData(dataArray)
+    const avg = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length
+    const normalized = Math.round((avg / 255) * 100)
+    setCurrentVolume(normalized)
+    const bars = []
+    const step = Math.floor(dataArray.length / 20)
+    for (let i = 0; i < 20; i++) {
+      const slice = dataArray.slice(i * step, (i + 1) * step)
+      const barAvg = slice.reduce((s, v) => s + v, 0) / slice.length
+      bars.push(Math.round((barAvg / 255) * 100))
+    }
+    setVolumeBars(bars)
+    if (socket?.connected) {
+      socket.emit('control:voice-level', { level: normalized, threshold: shoutThreshold, energyThreshold })
+    }
+    animFrameRef.current = requestAnimationFrame(readVolume)
+  }, [socket, shoutThreshold, energyThreshold])
+
+  const toggleMic = async () => {
+    if (micEnabled) {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach(t => t.stop())
+      if (audioContextRef.current) audioContextRef.current.close()
+      setMicEnabled(false)
+      setCurrentVolume(0)
+      setVolumeBars(Array(20).fill(0))
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        micStreamRef.current = stream
+        const audioContext = new AudioContext()
+        audioContextRef.current = audioContext
+        const analyser = audioContext.createAnalyser()
+        analyser.fftSize = 256
+        analyserRef.current = analyser
+        const source = audioContext.createMediaStreamSource(stream)
+        source.connect(analyser)
+        setMicEnabled(true)
+        readVolume()
+        antMessage.success('麦克风已开启')
+      } catch (err) {
+        antMessage.error('无法访问麦克风')
+      }
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach(t => t.stop())
+      if (audioContextRef.current) audioContextRef.current.close()
+    }
+  }, [])
+
+  // ========== Actions ==========
+  const handleShatter = () => { emit('control:shatter'); antMessage.info('💥 破碎指令已发送') }
+  const handleRebuild = () => { emit('control:rebuild'); antMessage.info('🔨 重建指令已发送') }
+  const handleClearDanmaku = () => { emit('control:clear-danmaku'); antMessage.info('🧹 弹幕已清空') }
+  const handleModeChange = (mode) => { setCurrentMode(mode); emit('control:set-mode', { mode }); antMessage.success(`模式切换: ${MODES.find(m => m.value === mode)?.label}`) }
+  const handleSetText = () => { if (!particleText.trim()) return; emit('control:set-text', { text: particleText.trim() }); antMessage.success(`粒子文字已更新`) }
+  const handleAgenda = (stage) => { emit('control:set-agenda', { stage }); antMessage.success(`阶段切换: ${AGENDA_STAGES.find(s => s.key === stage)?.label}`) }
+
+  const handleCountdown = () => {
+    emit('control:countdown', { seconds: countdownSeconds })
+    setCountdownActive(true)
+    antMessage.info(`⏱️ ${countdownSeconds} 秒倒计时已开始`)
+    setTimeout(() => setCountdownActive(false), countdownSeconds * 1000 + 1000)
+  }
+
+  const handleCountdownCancel = () => {
+    emit('control:countdown-cancel')
+    setCountdownActive(false)
+    antMessage.warning('⏱️ 倒计时已取消')
+  }
+
+  const handleMosaicPreview = (enabled) => {
+    setMosaicPreview(enabled)
+    emit('control:mosaic-preview', { enabled })
+    antMessage.success(enabled ? '马赛克预览已开启' : '马赛克预览已关闭')
+  }
+
+  const handleBackgroundUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('image', file)
+    try {
+      const res = await axios.post(`${API_BASE}/api/upload-background`, formData)
+      setBackgroundUrl(res.data.url)
+      antMessage.success('背景图片已上传并应用')
+    } catch (err) {
+      antMessage.error('上传失败: ' + (err.response?.data?.error || err.message))
+    }
+    e.target.value = ''
+  }
+
+  const handleClearBackground = () => {
+    emit('control:set-background', { url: '' })
+    setBackgroundUrl('')
+    antMessage.success('背景已清除')
+  }
+
+  const getModeColor = (mode) => {
+    const colors = { idle: '#666', speaker: '#722ed1', climax: '#f5222d', shatter: '#f5222d', rebuild: '#52c41a', danmaku: '#40a9ff', mosaic: '#722ed1' }
+    return colors[mode] || '#666'
+  }
+
+  // ========== Auth Screen ==========
+  if (!authenticated) {
+    return (
+      <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+        <div style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Card style={{
+            width: 380, background: 'rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16,
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <LockOutlined style={{ fontSize: 48, color: '#40a9ff', marginBottom: 16 }} />
+              <h2 style={{ color: '#fff', margin: '16px 0 4px' }}>控制台验证</h2>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>请输入管理员密码</p>
+            </div>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Input.Password
+                placeholder="请输入密码"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onPressEnter={handleLogin}
+                size="large"
+                prefix={<LockOutlined />}
+              />
+              <Button
+                type="primary"
+                onClick={handleLogin}
+                block
+                size="large"
+                style={{ borderRadius: 8 }}
+              >
+                验证
+              </Button>
+            </Space>
+          </Card>
+        </div>
+      </ConfigProvider>
+    )
+  }
+
+  // ========== Main Control Panel ==========
+  return (
+    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+      <div style={styles.container}>
+        {/* Header */}
+        <div style={styles.header}>
+          <DashboardOutlined style={styles.headerIcon} />
+          <span style={styles.headerTitle}>AI 素养大赛 · 控制台</span>
+          <Tag color={connected ? 'green' : 'red'} style={styles.connTag}>
+            {connected ? '● 已连接' : '○ 断开'}
+          </Tag>
+        </div>
+
+        <div style={styles.body}>
+          {/* Left Panel */}
+          <div style={styles.leftPanel}>
+            {/* Mode Switch */}
+            <Card title="🎮 模式切换" style={styles.card} size="small">
+              <Segmented
+                options={MODES}
+                value={currentMode}
+                onChange={handleModeChange}
+                block
+                size="large"
+              />
+            </Card>
+
+            {/* Agenda Stages */}
+            <Card title="📋 主持稿环节" style={styles.card} size="small">
+              <Row gutter={[8, 8]}>
+                {AGENDA_STAGES.map(s => (
+                  <Col span={8} key={s.key}>
+                    <Button
+                      block
+                      onClick={() => handleAgenda(s.key)}
+                      style={{
+                        ...styles.actionBtn,
+                        borderColor: s.color,
+                        color: s.color,
+                        height: 48,
+                      }}
+                    >
+                      {s.emoji} {s.label}
+                    </Button>
+                  </Col>
+                ))}
+              </Row>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card title="⚡ 快捷操作" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Button danger icon={<ThunderboltOutlined />} onClick={handleShatter} block size="large" style={styles.actionBtn}>
+                      破碎触发
+                    </Button>
+                  </Col>
+                  <Col span={12}>
+                    <Button type="primary" icon={<ReloadOutlined />} onClick={handleRebuild} block size="large" style={{ ...styles.actionBtn, background: '#52c41a' }}>
+                      手动重建
+                    </Button>
+                  </Col>
+                </Row>
+                <Button icon={<DeleteOutlined />} onClick={handleClearDanmaku} block style={styles.actionBtn}>
+                  🧹 清空弹幕
+                </Button>
+              </Space>
+            </Card>
+
+            {/* Countdown Control */}
+            <Card title="⏱️ 倒计时控制" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <div style={styles.sliderLabel}>
+                  <span>倒计时秒数</span>
+                  <Tag color="blue">{countdownSeconds}s</Tag>
+                </div>
+                <Slider
+                  min={1}
+                  max={30}
+                  value={countdownSeconds}
+                  onChange={setCountdownSeconds}
+                  trackStyle={{ background: 'linear-gradient(90deg, #40a9ff, #f5222d)' }}
+                />
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Button
+                      type="primary"
+                      onClick={handleCountdown}
+                      disabled={countdownActive}
+                      block
+                      size="large"
+                      style={styles.actionBtn}
+                    >
+                      {countdownActive ? '倒计时中...' : '▶ 开始倒计时'}
+                    </Button>
+                  </Col>
+                  <Col span={12}>
+                    <Button
+                      danger
+                      onClick={handleCountdownCancel}
+                      disabled={!countdownActive}
+                      block
+                      size="large"
+                      style={styles.actionBtn}
+                    >
+                      ✖ 取消倒计时
+                    </Button>
+                  </Col>
+                </Row>
+              </Space>
+            </Card>
+
+            {/* Mic Control */}
+            <Card title="🎤 麦克风控制" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Button
+                  icon={micEnabled ? <AudioOutlined /> : <AudioMutedOutlined />}
+                  onClick={toggleMic}
+                  type={micEnabled ? 'primary' : 'default'}
+                  danger={micEnabled}
+                  block
+                  size="large"
+                  style={styles.actionBtn}
+                >
+                  {micEnabled ? '关闭麦克风' : '开启麦克风'}
+                </Button>
+                <div>
+                  <div style={styles.sliderLabel}>
+                    <span>🎯 喊叫阈值</span>
+                    <Tag color="blue">{shoutThreshold}</Tag>
+                  </div>
+                  <Slider min={0} max={100} value={shoutThreshold} onChange={setShoutThreshold} trackStyle={{ background: 'linear-gradient(90deg, #40a9ff, #f5222d)' }} />
+                </div>
+                <div>
+                  <div style={styles.sliderLabel}><span>⚡ 能量阈值</span></div>
+                  <InputNumber value={energyThreshold} onChange={setEnergyThreshold} min={0} max={10000} style={{ width: '100%' }} />
+                </div>
+              </Space>
+            </Card>
+          </div>
+
+          {/* Right Panel */}
+          <div style={styles.rightPanel}>
+            {/* Stats */}
+            <Card title="📊 实时状态" style={styles.card} size="small">
+              <Row gutter={[16, 16]}>
+                <Col span={12}><Statistic title="在线用户" value={onlineUsers} prefix={<TeamOutlined />} valueStyle={{ color: '#40a9ff' }} /></Col>
+                <Col span={12}><Statistic title="已上传头像" value={avatarCount} prefix={<PictureOutlined />} valueStyle={{ color: '#722ed1' }} /></Col>
+                <Col span={12}><Statistic title="弹幕总数" value={danmakuCount} prefix={<MessageOutlined />} valueStyle={{ color: '#eb2f96' }} /></Col>
+                <Col span={12}><Statistic title="当前模式" value={MODES.find(m => m.value === currentMode)?.label} prefix={<FireOutlined />} valueStyle={{ color: getModeColor(currentMode) }} /></Col>
+              </Row>
+            </Card>
+
+            {/* Rebuild Progress */}
+            <Card title="🔨 重建进度" style={styles.card} size="small">
+              <Progress percent={rebuildProgress} status={rebuildProgress === 100 ? 'success' : 'active'} strokeColor={{ '0%': '#40a9ff', '50%': '#722ed1', '100%': '#eb2f96' }} />
+            </Card>
+
+            {/* Volume Visualizer */}
+            <Card title="🎙️ 实时音量" style={styles.card} size="small">
+              <div style={styles.volumeContainer}>
+                {volumeBars.map((bar, i) => (
+                  <div key={i} style={{
+                    ...styles.volumeBar,
+                    height: `${Math.max(4, bar)}%`,
+                    background: bar > 80 ? '#f5222d' : bar > 50 ? '#fa8c16' : `hsl(${200 + i * 4}, 80%, 55%)`,
+                    opacity: micEnabled ? 1 : 0.3,
+                  }} />
+                ))}
+              </div>
+              <div style={styles.volumeLabel}>
+                当前音量: <strong style={{ color: '#40a9ff' }}>{currentVolume}</strong>
+                {micEnabled ? '' : ' (麦克风未开启)'}
+              </div>
+            </Card>
+
+            {/* Particle Text */}
+            <Card title="✏️ 粒子文字" style={styles.card} size="small">
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  placeholder="输入大屏粒子文字"
+                  value={particleText}
+                  onChange={(e) => setParticleText(e.target.value)}
+                  onPressEnter={handleSetText}
+                  maxLength={20}
+                />
+                <Button type="primary" onClick={handleSetText}>更新</Button>
+              </Space.Compact>
+            </Card>
+
+            {/* Background Upload */}
+            <Card title="🖼️ 大屏背景" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="small">
+                <Row gutter={8}>
+                  <Col span={14}>
+                    <Button
+                      icon={<UploadOutlined />}
+                      onClick={() => bgFileRef.current?.click()}
+                      block
+                      style={styles.actionBtn}
+                    >
+                      上传背景图片
+                    </Button>
+                    <input
+                      ref={bgFileRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleBackgroundUpload}
+                    />
+                  </Col>
+                  <Col span={10}>
+                    <Button
+                      icon={<ClearOutlined />}
+                      onClick={handleClearBackground}
+                      block
+                      style={styles.actionBtn}
+                    >
+                      清除背景
+                    </Button>
+                  </Col>
+                </Row>
+                {backgroundUrl && (
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4, wordBreak: 'break-all' }}>
+                    当前: {backgroundUrl}
+                  </div>
+                )}
+              </Space>
+            </Card>
+
+            {/* Mosaic Preview */}
+            <Card title="🧩 马赛克预览" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="small">
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: 0 }}>
+                  预览模式使用 Emoji 代替人脸，无需用户上传头像
+                </p>
+                <Row gutter={8}>
+                  <Col span={12}>
+                    <Button
+                      type={mosaicPreview ? 'default' : 'primary'}
+                      onClick={() => handleMosaicPreview(false)}
+                      block
+                      style={styles.actionBtn}
+                    >
+                      🎭 真实模式
+                    </Button>
+                  </Col>
+                  <Col span={12}>
+                    <Button
+                      type={mosaicPreview ? 'primary' : 'default'}
+                      onClick={() => handleMosaicPreview(true)}
+                      block
+                      style={styles.actionBtn}
+                    >
+                      😀 Emoji 预览
+                    </Button>
+                  </Col>
+                </Row>
+              </Space>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </ConfigProvider>
+  )
+}
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%)',
+    padding: '16px',
+  },
+  header: {
+    display: 'flex', alignItems: 'center', gap: '12px',
+    padding: '12px 20px', background: 'rgba(0,0,0,0.4)',
+    borderRadius: '12px', marginBottom: '16px',
+    backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.06)',
+  },
+  headerIcon: { fontSize: '24px', color: '#40a9ff' },
+  headerTitle: { fontSize: '20px', fontWeight: '700', color: '#fff', flex: 1, letterSpacing: '2px' },
+  connTag: { borderRadius: '20px' },
+  body: { display: 'flex', gap: '16px', minHeight: 'calc(100vh - 100px)' },
+  leftPanel: { flex: '1', minWidth: '360px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  rightPanel: { flex: '1', minWidth: '360px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  card: { background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' },
+  actionBtn: { borderRadius: '8px', fontWeight: '600', height: '44px' },
+  sliderLabel: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', color: 'rgba(255,255,255,0.7)', fontSize: '14px' },
+  volumeContainer: { display: 'flex', gap: '3px', alignItems: 'flex-end', height: '100px', justifyContent: 'center', padding: '8px 0' },
+  volumeBar: { width: '12px', borderRadius: '3px 3px 0 0', transition: 'height 0.1s ease-out', minHeight: '4px' },
+  volumeLabel: { textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginTop: '8px' },
+}

@@ -1,0 +1,73 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Ant Design dark overrides */
+.ant-btn {
+  border-radius: 8px !important;
+}
+
+.ant-input {
+  border-radius: 8px !important;
+}
+
+/* Glow effects */
+.glow-blue {
+  box-shadow: 0 0 20px rgba(64, 169, 255, 0.3);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(114, 46, 209, 0.3);
+}
+
+.glow-pink {
+  box-shadow: 0 0 20px rgba(235, 47, 150, 0.3);
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes flyOut {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0) translateY(-100px); opacity: 0; }
+}

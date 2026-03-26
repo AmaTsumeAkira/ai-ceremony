@@ -1,0 +1,514 @@
+import React, { useState, useEffect, useRef } from 'react'
+import { Input, Button, message as antMessage, ConfigProvider, theme } from 'antd'
+import {
+  SendOutlined,
+  UploadOutlined,
+  CheckCircleFilled,
+  MessageOutlined,
+} from '@ant-design/icons'
+import axios from 'axios'
+import { useSocket } from '../hooks/useSocket'
+import FaceUploader from '../components/FaceUploader'
+
+const COLORS = [
+  { name: '冰蓝', value: '#40a9ff' },
+  { name: '极光绿', value: '#52c41a' },
+  { name: '活力橙', value: '#fa8c16' },
+  { name: '梦幻紫', value: '#722ed1' },
+  { name: '樱花粉', value: '#eb2f96' },
+  { name: '炽焰红', value: '#f5222d' },
+]
+
+const EMOJIS = ['🔥', '❤️', '👏', '🎉', '😂', '🤩', '💯', '✨', '🚀', '👍']
+
+const SERVER_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:6588'
+  : `${window.location.protocol}//${window.location.hostname}:6588`
+
+export default function Mobile() {
+  const { socket, connected, emit } = useSocket()
+  const [nickname, setNickname] = useState('')
+  const [registered, setRegistered] = useState(false)
+  const [danmakuText, setDanmakuText] = useState('')
+  const [selectedColor, setSelectedColor] = useState(COLORS[0].value)
+  const [currentMode, setCurrentMode] = useState('idle')
+  const [avatarUrl, setAvatarUrl] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [showColorPicker, setShowColorPicker] = useState(false)
+  const [userId, setUserId] = useState(null)
+  const inputRef = useRef(null)
+  const [flyAnim, setFlyAnim] = useState(false)
+  const hasJoinedRef = useRef(false)
+
+  // Listen for mode changes
+  useEffect(() => {
+    if (!socket) return
+    const handleMode = (data) => {
+      setCurrentMode(data.mode || 'idle')
+    }
+    const handleState = (state) => {
+      if (state.mode) setCurrentMode(state.mode)
+    }
+    const handleJoined = (data) => {
+      if (data?.id) {
+        setUserId(data.id)
+        localStorage.setItem('ceremony_userId', String(data.id))
+      }
+    }
+    const handleReconnected = (data) => {
+      if (data?.id) {
+        setUserId(data.id)
+        setRegistered(true)
+        antMessage.success('已恢复连接')
+      }
+    }
+    socket.on('mode:changed', handleMode)
+    socket.on('control:state', handleState)
+    socket.on('user:joined', handleJoined)
+    socket.on('user:reconnected', handleReconnected)
+    return () => {
+      socket.off('mode:changed', handleMode)
+      socket.off('control:state', handleState)
+      socket.off('user:joined', handleJoined)
+      socket.off('user:reconnected', handleReconnected)
+    }
+  }, [socket])
+
+  const handleRegister = () => {
+    if (!nickname.trim()) {
+      antMessage.warning('请输入昵称')
+      return
+    }
+    if (socket?.connected) {
+      emit('user:join', { nickname: nickname.trim() })
+      setRegistered(true)
+      localStorage.setItem('ai_ceremony_nickname', nickname.trim())
+      antMessage.success('注册成功！')
+    } else {
+      antMessage.error('未连接到服务器')
+    }
+  }
+
+  // Auto-register if previously registered (only once)
+  useEffect(() => {
+    const saved = localStorage.getItem('ai_ceremony_nickname')
+    const savedUserId = localStorage.getItem('ceremony_userId')
+    if (connected && !hasJoinedRef.current) {
+      if (saved && savedUserId) {
+        setNickname(saved)
+        setUserId(Number(savedUserId))
+        emit('user:join', { nickname: saved, reconnectUserId: Number(savedUserId) })
+        setRegistered(true)
+        hasJoinedRef.current = true
+      } else if (saved) {
+        setNickname(saved)
+        emit('user:join', { nickname: saved })
+        setRegistered(true)
+        hasJoinedRef.current = true
+      }
+    }
+  }, [connected, emit])
+
+  const handleSendDanmaku = () => {
+    if (!danmakuText.trim()) return
+    if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
+    setSending(true)
+    setFlyAnim(true)
+    emit('danmaku:send', {
+      content: danmakuText.trim(),
+      color: selectedColor,
+    })
+    setDanmakuText('')
+    setTimeout(() => {
+      setSending(false)
+      setFlyAnim(false)
+    }, 500)
+  }
+
+  const handleSendEmoji = (emoji) => {
+    if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
+    emit('emoji:send', { emoji })
+  }
+
+  const handleAvatarUploaded = (url) => {
+    setAvatarUrl(url)
+  }
+
+  const getModeLabel = (mode) => {
+    const labels = {
+      idle: '待命中',
+      shatter: '💥 破碎进行中',
+      rebuild: '🔨 重建进行中',
+      danmaku: '💬 弹幕模式',
+      mosaic: '🧩 马赛克模式',
+    }
+    return labels[mode] || '待命中'
+  }
+
+  const getModeColor = (mode) => {
+    const colors = {
+      idle: '#666',
+      shatter: '#f5222d',
+      rebuild: '#52c41a',
+      danmaku: '#40a9ff',
+      mosaic: '#722ed1',
+    }
+    return colors[mode] || '#666'
+  }
+
+  // Registration screen
+  if (!registered) {
+    return (
+      <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+        <div style={styles.registerContainer}>
+          <div style={styles.registerCard}>
+            <div style={styles.logoArea}>
+              <div style={styles.logoGlow}>
+                <span style={styles.logoText}>AI</span>
+              </div>
+              <h1 style={styles.title}>素养大赛</h1>
+              <p style={styles.subtitle}>开幕式互动系统</p>
+            </div>
+            <div style={styles.registerForm}>
+              <Input
+                placeholder="请输入你的昵称"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                onPressEnter={handleRegister}
+                size="large"
+                style={styles.input}
+                maxLength={12}
+                prefix={<MessageOutlined style={{ color: '#666' }} />}
+              />
+              <Button
+                type="primary"
+                size="large"
+                block
+                onClick={handleRegister}
+                style={styles.registerBtn}
+                disabled={!connected}
+              >
+                {connected ? '加入互动' : '连接中...'}
+              </Button>
+            </div>
+            <div style={styles.statusDot}>
+              <span style={{
+                ...styles.dot,
+                background: connected ? '#52c41a' : '#f5222d'
+              }} />
+              <span style={styles.statusText}>
+                {connected ? '服务器已连接' : '正在连接服务器...'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </ConfigProvider>
+    )
+  }
+
+  // Main mobile UI
+  return (
+    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+      <div style={styles.container}>
+        {/* Header */}
+        <div style={styles.header}>
+          <div style={styles.headerLeft}>
+            <span style={styles.nickname}>👤 {nickname}</span>
+          </div>
+          <div style={styles.headerRight}>
+            <span style={{
+              ...styles.modeTag,
+              background: getModeColor(currentMode) + '20',
+              color: getModeColor(currentMode),
+              border: `1px solid ${getModeColor(currentMode)}40`,
+            }}>
+              {getModeLabel(currentMode)}
+            </span>
+          </div>
+        </div>
+
+        {/* Avatar Section */}
+        <div style={styles.avatarSection}>
+          <FaceUploader
+            socket={socket}
+            emit={emit}
+            nickname={nickname}
+            userId={userId}
+            avatarUrl={avatarUrl}
+            onUploaded={handleAvatarUploaded}
+          />
+        </div>
+
+        {/* Danmaku Input Area */}
+        <div style={styles.danmakuArea}>
+          {/* Emoji Bar */}
+          <div style={styles.emojiBar}>
+            {EMOJIS.map((e) => (
+              <button
+                key={e}
+                onClick={() => handleSendEmoji(e)}
+                style={styles.emojiBtn}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+
+          {/* Color Picker */}
+          {showColorPicker && (
+            <div style={styles.colorPicker}>
+              {COLORS.map((c) => (
+                <div
+                  key={c.value}
+                  onClick={() => {
+                    setSelectedColor(c.value)
+                    setShowColorPicker(false)
+                  }}
+                  style={{
+                    ...styles.colorDot,
+                    background: c.value,
+                    transform: selectedColor === c.value ? 'scale(1.3)' : 'scale(1)',
+                    boxShadow: selectedColor === c.value ? `0 0 12px ${c.value}` : 'none',
+                  }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          )}
+
+          <div style={styles.inputRow}>
+            <div
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              style={{
+                ...styles.colorBtn,
+                background: selectedColor,
+                boxShadow: `0 0 10px ${selectedColor}40`,
+              }}
+            />
+            <Input
+              ref={inputRef}
+              placeholder="输入弹幕内容..."
+              value={danmakuText}
+              onChange={(e) => setDanmakuText(e.target.value)}
+              onPressEnter={handleSendDanmaku}
+              style={styles.danmakuInput}
+              maxLength={50}
+              disabled={sending}
+            />
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={handleSendDanmaku}
+              loading={sending}
+              style={{
+                ...styles.sendBtn,
+                animation: flyAnim ? 'flyOut 0.5s ease-out' : 'none',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </ConfigProvider>
+  )
+}
+
+const styles = {
+  registerContainer: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0d1b3e 100%)',
+    padding: '20px',
+  },
+  registerCard: {
+    width: '100%',
+    maxWidth: '380px',
+    textAlign: 'center',
+  },
+  logoArea: {
+    marginBottom: '48px',
+  },
+  logoGlow: {
+    width: '100px',
+    height: '100px',
+    borderRadius: '24px',
+    background: 'linear-gradient(135deg, #40a9ff, #722ed1, #eb2f96)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 20px',
+    boxShadow: '0 0 40px rgba(64, 169, 255, 0.3), 0 0 80px rgba(114, 46, 209, 0.2)',
+  },
+  logoText: {
+    fontSize: '36px',
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: '2px',
+    textShadow: '0 2px 10px rgba(0,0,0,0.3)',
+  },
+  title: {
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#fff',
+    margin: '0 0 8px',
+    letterSpacing: '4px',
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: '2px',
+  },
+  registerForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  input: {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '12px',
+    height: '48px',
+    fontSize: '16px',
+  },
+  registerBtn: {
+    height: '48px',
+    fontSize: '16px',
+    fontWeight: '600',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #40a9ff, #722ed1)',
+    border: 'none',
+    boxShadow: '0 4px 20px rgba(64, 169, 255, 0.3)',
+  },
+  statusDot: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    marginTop: '24px',
+  },
+  dot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    animation: 'pulse 2s infinite',
+  },
+  statusText: {
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.4)',
+  },
+
+  // Main UI
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%)',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 16px',
+    background: 'rgba(0,0,0,0.3)',
+    backdropFilter: 'blur(10px)',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  nickname: {
+    fontSize: '14px',
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  headerRight: {},
+  modeTag: {
+    fontSize: '12px',
+    padding: '4px 10px',
+    borderRadius: '20px',
+    fontWeight: '500',
+  },
+  avatarSection: {
+    flex: 1,
+    padding: '20px 16px',
+    overflow: 'auto',
+  },
+  danmakuArea: {
+    position: 'sticky',
+    bottom: 0,
+    padding: '12px 16px',
+    paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+    background: 'rgba(10, 10, 26, 0.95)',
+    backdropFilter: 'blur(20px)',
+    borderTop: '1px solid rgba(255,255,255,0.08)',
+  },
+  colorPicker: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center',
+    marginBottom: '12px',
+    padding: '8px 0',
+    animation: 'slideUp 0.3s ease-out',
+  },
+  colorDot: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  inputRow: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center',
+  },
+  colorBtn: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'all 0.2s',
+  },
+  danmakuInput: {
+    flex: 1,
+    borderRadius: '20px',
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    height: '40px',
+  },
+  sendBtn: {
+    borderRadius: '50%',
+    width: '40px',
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #40a9ff, #722ed1)',
+    border: 'none',
+    flexShrink: 0,
+  },
+  emojiBar: {
+    display: 'flex',
+    gap: '6px',
+    justifyContent: 'center',
+    marginBottom: '10px',
+    flexWrap: 'wrap',
+  },
+  emojiBtn: {
+    fontSize: '24px',
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px',
+    width: '42px',
+    height: '42px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'transform 0.15s, background 0.15s',
+    padding: 0,
+  },
+}

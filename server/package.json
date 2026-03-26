@@ -1,0 +1,19 @@
+{
+  "name": "ai-ceremony-server",
+  "version": "1.0.0",
+  "description": "AI 素养大赛开幕式互动系统后端",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0"
+  }
+}
