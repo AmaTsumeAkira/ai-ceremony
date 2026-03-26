@@ -105,6 +105,7 @@ export default function Control() {
   const analyserRef = useRef(null)
   const micStreamRef = useRef(null)
   const animFrameRef = useRef(null)
+  const lastSendTimeRef = useRef(0)
   const shoutThresholdRef = useRef(shoutThreshold)
   const energyThresholdRef = useRef(energyThreshold)
 
@@ -253,8 +254,11 @@ export default function Control() {
       bars.push(Math.round((barAvg / 255) * 100))
     }
     setVolumeBars(bars)
-    if (socket?.connected) {
-      socket.emit('control:voice-level', { level: normalized, threshold: shoutThresholdRef.current, energyThreshold: energyThresholdRef.current })
+    // 节流：每 100ms 最多发送一次，避免高频发包
+    const now = Date.now()
+    if (socket?.connected && now - lastSendTimeRef.current >= 100) {
+      lastSendTimeRef.current = now
+      socket.emit('control:voice-level', { level: normalized, threshold: shoutThresholdRef.current })
     }
     animFrameRef.current = requestAnimationFrame(readVolume)
   }, [socket])
