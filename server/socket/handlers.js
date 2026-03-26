@@ -222,6 +222,17 @@ function setupSocket(io) {
       }
     }));
 
+    // 能量阈值设置（从控制端同步）
+    socket.on('control:set-energy-threshold', requireAuth((data) => {
+      const { value } = data;
+      if (typeof value === 'number' && value > 0) {
+        threshold = value;
+        db.prepare("UPDATE system_state SET value = ? WHERE key = 'threshold'").run(String(value));
+        broadcastState(io);
+        console.log(`[Control] energy threshold set to ${value}`);
+      }
+    }));
+
     socket.on('control:clear-danmaku', requireAuth(() => {
       db.prepare('DELETE FROM danmaku').run();
       io.emit('danmaku:cleared');
@@ -311,7 +322,12 @@ function setupSocket(io) {
 
     // ========== 麦克风音量 ==========
     socket.on('control:voice-level', requireAuth((data) => {
-      const { level } = data;
+      const { level, threshold: clientThreshold, energyThreshold: clientEnergyThreshold } = data;
+      // 同步客户端设置的阈值
+      if (typeof clientEnergyThreshold === 'number' && clientEnergyThreshold > 0 && clientEnergyThreshold !== threshold) {
+        threshold = clientEnergyThreshold;
+        db.prepare("UPDATE system_state SET value = ? WHERE key = 'threshold'").run(String(threshold));
+      }
       if (typeof level === 'number' && level >= 0 && level <= 100) {
         energy += level * 0.1;
         const progress = getEnergyProgress();

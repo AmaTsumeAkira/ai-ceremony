@@ -132,4 +132,41 @@ router.post('/upload-background', bgUpload.single('image'), (req, res) => {
   res.json({ url: bgUrl });
 });
 
+// GET /api/export/users — 导出用户数据为 CSV
+router.get('/export/users', (req, res) => {
+  const rows = db.prepare(
+    `SELECT u.id, u.nickname, u.face_url, u.created_at,
+            (SELECT COUNT(*) FROM danmaku d WHERE d.user_id = u.id) as danmaku_count
+     FROM users u ORDER BY u.id ASC`
+  ).all();
+
+  // BOM for Excel Chinese support
+  let csv = '\uFEFFID,昵称,头像URL,注册时间,弹幕数\n';
+  for (const row of rows) {
+    csv += `${row.id},"${(row.nickname || '').replace(/"/g, '""')}","${row.face_url || ''}","${row.created_at}",${row.danmaku_count}\n`;
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=users_export_${Date.now()}.csv`);
+  res.send(csv);
+});
+
+// GET /api/export/danmaku — 导出弹幕数据为 CSV
+router.get('/export/danmaku', (req, res) => {
+  const rows = db.prepare(
+    `SELECT d.id, d.user_id, u.nickname, d.content, d.color, d.created_at
+     FROM danmaku d LEFT JOIN users u ON d.user_id = u.id
+     ORDER BY d.id ASC`
+  ).all();
+
+  let csv = '\uFEFFID,用户ID,昵称,内容,颜色,发送时间\n';
+  for (const row of rows) {
+    csv += `${row.id},${row.user_id || ''},"${(row.nickname || '匿名').replace(/"/g, '""')}","${(row.content || '').replace(/"/g, '""')}","${row.color || '#ffffff'}","${row.created_at}"\n`;
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=danmaku_export_${Date.now()}.csv`);
+  res.send(csv);
+});
+
 module.exports = router;

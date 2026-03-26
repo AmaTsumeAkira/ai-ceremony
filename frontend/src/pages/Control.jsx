@@ -30,6 +30,7 @@ import {
   UploadOutlined,
   ClearOutlined,
   LockOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import { useSocket } from '../hooks/useSocket'
 import axios from 'axios'
@@ -305,6 +306,16 @@ export default function Control() {
     antMessage.success('背景已清除')
   }
 
+  const handleExportUsers = () => {
+    window.open(`${API_BASE}/api/export/users`, '_blank')
+    antMessage.success('用户数据已导出')
+  }
+
+  const handleExportDanmaku = () => {
+    window.open(`${API_BASE}/api/export/danmaku`, '_blank')
+    antMessage.success('弹幕数据已导出')
+  }
+
   const getModeColor = (mode) => {
     const colors = { idle: '#666', speaker: '#722ed1', climax: '#f5222d', shatter: '#f5222d', rebuild: '#52c41a', danmaku: '#40a9ff', mosaic: '#722ed1' }
     return colors[mode] || '#666'
@@ -421,6 +432,18 @@ export default function Control() {
                 <Button icon={<DeleteOutlined />} onClick={handleClearDanmaku} block style={styles.actionBtn}>
                   🧹 清空弹幕
                 </Button>
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Button icon={<DownloadOutlined />} onClick={handleExportUsers} block style={styles.actionBtn}>
+                      📋 导出用户
+                    </Button>
+                  </Col>
+                  <Col span={12}>
+                    <Button icon={<DownloadOutlined />} onClick={handleExportDanmaku} block style={styles.actionBtn}>
+                      💬 导出弹幕
+                    </Button>
+                  </Col>
+                </Row>
               </Space>
             </Card>
 

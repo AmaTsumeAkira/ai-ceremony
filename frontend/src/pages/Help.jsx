@@ -75,6 +75,8 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>弹幕管理</td><td>一键清空所有弹幕</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克预览</td><td>无头像时用 Emoji 填充预览效果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>背景上传</td><td>上传自定义背景图替换大屏背景</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>导出用户</td><td>导出所有注册用户数据为 CSV 文件（含昵称、头像、弹幕数）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>导出弹幕</td><td>导出所有弹幕记录为 CSV 文件（含内容、颜色、时间）</td></tr>
             </tbody>
           </table>
         </div>
@@ -129,10 +131,13 @@ const Help = () => {
             </thead>
             <tbody>
               <tr style={trStyle}><td style={tdCode}>GET /health</td><td>系统状态和运行时间</td></tr>
-              <tr style={trStyle}><td style={tdCode}>GET /api/users</td><td>所有注册用户列表</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/faces</td><td>所有已上传头像列表</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/danmaku/recent</td><td>最近弹幕记录</td></tr>
               <tr style={trStyle}><td style={tdCode}>POST /api/user/upload-face</td><td>上传头像（multipart，最大5MB）</td></tr>
-              <tr style={trStyle}><td style={tdCode}>GET /api/state</td><td>当前系统状态（模式、能量、阈值）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/system/state</td><td>当前系统状态（模式、能量、阈值）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/stats</td><td>统计数据（在线人数、弹幕数、头像数）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/export/users</td><td>导出用户数据 CSV（含头像、弹幕数）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/export/danmaku</td><td>导出弹幕数据 CSV</td></tr>
             </tbody>
           </table>
         </div>

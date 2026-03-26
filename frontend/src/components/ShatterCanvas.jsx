@@ -203,7 +203,8 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
       const pos = geometry.attributes.position.array
 
       if (stateRef.current === 'shattering') {
-        // Shatter: give random velocity
+        // Shatter: give random velocity with friction decay
+        let allGone = true
         for (let i = 0; i < count; i++) {
           const i3 = i * 3
           if (velocities[i3] === 0 && velocities[i3 + 1] === 0) {
@@ -214,9 +215,26 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
             velocities[i3 + 1] = Math.sin(phi) * Math.sin(angle) * speed
             velocities[i3 + 2] = Math.cos(phi) * speed * 0.5
           }
+          // Apply friction decay
+          const friction = 0.97
+          velocities[i3] *= friction
+          velocities[i3 + 1] *= friction
+          velocities[i3 + 2] *= friction
+
           pos[i3] += velocities[i3] * delta
           pos[i3 + 1] += velocities[i3 + 1] * delta
           pos[i3 + 2] += velocities[i3 + 2] * delta
+
+          // Check if particle is still moving or within visible range
+          const distFromCenter = Math.sqrt(pos[i3] ** 2 + pos[i3 + 1] ** 2 + pos[i3 + 2] ** 2)
+          const speed = Math.sqrt(velocities[i3] ** 2 + velocities[i3 + 1] ** 2 + velocities[i3 + 2] ** 2)
+          if (speed > 0.01 || distFromCenter < 20) {
+            allGone = false
+          }
+        }
+        // If all particles are far away and barely moving, stop updating
+        if (allGone) {
+          stateRef.current = 'idle'
         }
         geometry.attributes.position.needsUpdate = true
       } else if (stateRef.current === 'rebuilding') {
