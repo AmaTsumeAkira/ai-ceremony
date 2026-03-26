@@ -10,6 +10,16 @@ let threshold = (() => {
 })();
 let decayInterval = null;
 
+// ========== 活动日志 ==========
+function logEvent(eventType, eventData) {
+  try {
+    const dataStr = typeof eventData === 'object' ? JSON.stringify(eventData) : String(eventData || '');
+    db.prepare('INSERT INTO ceremony_logs (event_type, event_data) VALUES (?, ?)').run(eventType, dataStr);
+    // 保留最近 2000 条
+    db.prepare(`DELETE FROM ceremony_logs WHERE id NOT IN (SELECT id FROM ceremony_logs ORDER BY id DESC LIMIT 2000)`).run();
+  } catch (e) { /* ignore */ }
+}
+
 // ========== 认证状态 ==========
 const authenticatedSockets = new Set();
 
@@ -105,6 +115,7 @@ function setupSocket(io) {
 
         socket.emit('user:joined', { id: result.lastInsertRowid, nickname: nickname.trim() });
         broadcastUsersCount(io);
+        logEvent('user_join', { nickname: nickname.trim(), id: result.lastInsertRowid });
         console.log(`[User] ${nickname} joined, id=${result.lastInsertRowid}`);
       } catch (err) {
         socket.emit('error', { message: err.message });
@@ -142,6 +153,7 @@ function setupSocket(io) {
 
         socket.emit('face:uploaded', { face_url: faceUrl });
         io.emit('face:new', { user_id: socket.userId || null, face_url: faceUrl, nickname: socket.userNickname });
+        logEvent('face_upload', { nickname: socket.userNickname, face_url: faceUrl });
         console.log(`[Face] uploaded by ${socket.userNickname}: ${faceUrl}`);
       } catch (err) {
         socket.emit('error', { message: err.message });
@@ -171,6 +183,7 @@ function setupSocket(io) {
         };
 
         io.emit('danmaku:new', danmaku);
+        logEvent('danmaku', { nickname: danmaku.nickname, content: content.trim() });
         console.log(`[Danmaku] ${danmaku.nickname}: ${content.trim()}`);
 
         db.prepare(`
@@ -202,6 +215,7 @@ function setupSocket(io) {
       io.emit('shatter:start');
       io.emit('shatter:progress', 0);
       broadcastState(io);
+      logEvent('shatter', { action: 'trigger' });
       console.log('[Control] shatter triggered');
     }));
 
@@ -211,6 +225,7 @@ function setupSocket(io) {
       io.emit('shatter:progress', 100);
       io.emit('mode:changed', { mode: 'rebuild' });
       broadcastState(io);
+      logEvent('rebuild', { action: 'trigger' });
       console.log('[Control] rebuild triggered');
     }));
 
@@ -248,6 +263,7 @@ function setupSocket(io) {
         db.prepare("UPDATE system_state SET value = ? WHERE key = 'mode'").run(mode);
         io.emit('mode:changed', { mode });
         broadcastState(io);
+        logEvent('mode_change', { mode });
         console.log(`[Control] mode set to ${mode}`);
       }
     }));
@@ -282,6 +298,7 @@ function setupSocket(io) {
         io.emit('mode:changed', { mode: s.mode });
         io.emit('agenda:changed', { stage, label: s.label });
         broadcastState(io);
+        logEvent('agenda', { stage, label: s.label });
         console.log(`[Control] agenda stage: ${stage} (${s.label})`);
       }
     }));
@@ -352,6 +369,7 @@ function setupSocket(io) {
       const { seconds } = data;
       if (typeof seconds === 'number' && seconds > 0 && seconds <= 60) {
         io.emit('display:countdown', { seconds });
+        logEvent('countdown', { seconds });
         console.log(`[Control] countdown started: ${seconds}s`);
       }
     }));

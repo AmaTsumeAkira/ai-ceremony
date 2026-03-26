@@ -77,6 +77,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>背景上传</td><td>上传自定义背景图替换大屏背景</td></tr>
               <tr style={trStyle}><td style={tdLabel}>导出用户</td><td>导出所有注册用户数据为 CSV 文件（含昵称、头像、弹幕数）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>导出弹幕</td><td>导出所有弹幕记录为 CSV 文件（含内容、颜色、时间）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
             </tbody>
           </table>
         </div>
@@ -138,6 +139,8 @@ const Help = () => {
               <tr style={trStyle}><td style={tdCode}>GET /api/stats</td><td>统计数据（在线人数、弹幕数、头像数）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/export/users</td><td>导出用户数据 CSV（含头像、弹幕数）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/export/danmaku</td><td>导出弹幕数据 CSV</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/logs</td><td>活动日志（可选 ?limit=50&type=xxx）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>DELETE /api/logs</td><td>清空活动日志（需认证）</td></tr>
             </tbody>
           </table>
         </div>

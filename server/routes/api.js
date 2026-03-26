@@ -132,7 +132,7 @@ router.post('/upload-background', bgUpload.single('image'), (req, res) => {
   res.json({ url: bgUrl });
 });
 
-// 导出端点认证中间点
+// 导出端点认证中间件
 function requireExportAuth(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
@@ -140,6 +140,33 @@ function requireExportAuth(req, res, next) {
   }
   next();
 }
+
+// GET /api/logs — 活动日志（最近100条）
+router.get('/logs', (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  const type = req.query.type; // optional filter by event_type
+  let rows;
+  if (type) {
+    rows = db.prepare(
+      'SELECT id, event_type, event_data, created_at FROM ceremony_logs WHERE event_type = ? ORDER BY id DESC LIMIT ?'
+    ).all(type, limit);
+  } else {
+    rows = db.prepare(
+      'SELECT id, event_type, event_data, created_at FROM ceremony_logs ORDER BY id DESC LIMIT ?'
+    ).all(limit);
+  }
+  res.json(rows.reverse()); // 时间正序
+});
+
+// DELETE /api/logs — 清空活动日志
+router.delete('/logs', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
+    return res.status(401).json({ error: '未认证' });
+  }
+  db.prepare('DELETE FROM ceremony_logs').run();
+  res.json({ ok: true });
+});
 
 // GET /api/export/users — 导出用户数据为 CSV
 router.get('/export/users', requireExportAuth, (req, res) => {

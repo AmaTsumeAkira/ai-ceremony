@@ -33,6 +33,16 @@ db.exec(`
   );
 `);
 
+// 活动日志表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ceremony_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    event_data TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // 初始化默认系统状态
 const defaultStates = {
   mode: 'idle',

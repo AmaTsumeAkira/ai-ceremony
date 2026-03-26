@@ -86,6 +86,9 @@ export default function Control() {
   // Mosaic preview state
   const [mosaicPreview, setMosaicPreview] = useState(false)
 
+  // Activity log state
+  const [activityLogs, setActivityLogs] = useState([])
+
   // Audio refs
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)
@@ -154,7 +157,12 @@ export default function Control() {
 
     const handleState = (state) => {
       if (state.mode) setCurrentMode(state.mode)
-      if (state.energy !== undefined) setRebuildProgress(Number(state.energy) / Number(state.threshold || 1000) * 100)
+      if (state.threshold) setEnergyThreshold(Number(state.threshold))
+      if (state.energy !== undefined && state.threshold) {
+        setRebuildProgress(Number(state.energy) / Number(state.threshold) * 100)
+      } else if (state.energy !== undefined) {
+        setRebuildProgress(Number(state.energy) / 1000 * 100)
+      }
       if (state.particleText) setParticleText(state.particleText)
       if (state.background !== undefined) setBackgroundUrl(state.background)
     }
@@ -181,7 +189,7 @@ export default function Control() {
     }
   }, [socket])
 
-  // Load initial stats
+  // Load initial stats + logs
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -194,9 +202,17 @@ export default function Control() {
         setAvatarCount(stats.faces || 0)
         setDanmakuCount(stats.danmaku || 0)
         if (stateRes.data.mode) setCurrentMode(stateRes.data.mode)
+        if (stateRes.data.threshold) setEnergyThreshold(Number(stateRes.data.threshold))
+      } catch (e) { /* ignore */ }
+    }
+    const loadLogs = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/logs?limit=50`)
+        setActivityLogs(res.data)
       } catch (e) { /* ignore */ }
     }
     loadStats()
+    loadLogs()
   }, [])
 
   // ========== Mic ==========
@@ -320,6 +336,47 @@ export default function Control() {
     const colors = { idle: '#666', speaker: '#722ed1', climax: '#f5222d', shatter: '#f5222d', rebuild: '#52c41a', danmaku: '#40a9ff', mosaic: '#722ed1' }
     return colors[mode] || '#666'
   }
+
+  const formatLogEntry = (log) => {
+    const data = (() => { try { return JSON.parse(log.event_data || '{}') } catch { return {} } })()
+    const time = log.created_at ? new Date(log.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+    const labels = {
+      user_join: { icon: '👤', text: `${data.nickname || '用户'} 加入`, color: '#40a9ff' },
+      face_upload: { icon: '📸', text: `${data.nickname || '用户'} 上传头像`, color: '#722ed1' },
+      danmaku: { icon: '💬', text: `${data.nickname || '匿名'}: ${data.content || ''}`, color: '#eb2f96' },
+      mode_change: { icon: '🔄', text: `模式切换: ${data.mode || ''}`, color: '#fa8c16' },
+      shatter: { icon: '💥', text: '粒子碎裂触发', color: '#f5222d' },
+      rebuild: { icon: '🔨', text: '粒子重建触发', color: '#52c41a' },
+      agenda: { icon: '📋', text: `阶段: ${data.label || ''}`, color: '#13c2c2' },
+      countdown: { icon: '⏱️', text: `${data.seconds || 0}s 倒计时开始`, color: '#40a9ff' },
+    }
+    const info = labels[log.event_type] || { icon: '📌', text: log.event_type, color: '#666' }
+    return { ...info, time }
+  }
+
+  const handleClearLogs = async () => {
+    try {
+      await axios.delete(`${API_BASE}/api/logs`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('ceremony_password')}` },
+      })
+      setActivityLogs([])
+      antMessage.success('活动日志已清空')
+    } catch (e) {
+      antMessage.error('清空失败')
+    }
+  }
+
+  // ========== Periodic log refresh ==========
+  useEffect(() => {
+    if (!authenticated) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/logs?limit=50`)
+        setActivityLogs(res.data)
+      } catch (e) { /* ignore */ }
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [authenticated])
 
   // ========== Auth Screen ==========
   if (!authenticated) {
@@ -638,6 +695,39 @@ export default function Control() {
                 </Row>
               </Space>
             </Card>
+
+            {/* Activity Log */}
+            <Card
+              title="📜 活动日志"
+              style={styles.card}
+              size="small"
+              extra={
+                <Button size="small" onClick={handleClearLogs} danger style={{ borderRadius: 6 }}>
+                  清空
+                </Button>
+              }
+            >
+              <div style={styles.logContainer}>
+                {activityLogs.length === 0 ? (
+                  <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0', fontSize: 13 }}>
+                    暂无活动记录
+                  </div>
+                ) : (
+                  activityLogs.map((log) => {
+                    const entry = formatLogEntry(log)
+                    return (
+                      <div key={log.id} style={styles.logEntry}>
+                        <span style={styles.logTime}>{entry.time}</span>
+                        <span style={{ ...styles.logIcon }}>{entry.icon}</span>
+                        <span style={{ ...styles.logText, color: entry.color }}>
+                          {entry.text.length > 40 ? entry.text.slice(0, 40) + '...' : entry.text}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </Card>
           </div>
         </div>
       </div>
@@ -669,4 +759,9 @@ const styles = {
   volumeContainer: { display: 'flex', gap: '3px', alignItems: 'flex-end', height: '100px', justifyContent: 'center', padding: '8px 0' },
   volumeBar: { width: '12px', borderRadius: '3px 3px 0 0', transition: 'height 0.1s ease-out', minHeight: '4px' },
   volumeLabel: { textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginTop: '8px' },
+  logContainer: { maxHeight: '300px', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' },
+  logEntry: { display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '13px' },
+  logTime: { color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontFamily: 'monospace', flexShrink: 0, width: '65px' },
+  logIcon: { flexShrink: 0, fontSize: '14px' },
+  logText: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 }
