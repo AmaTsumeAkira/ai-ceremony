@@ -35,6 +35,7 @@ import {
 import { useSocket } from '../hooks/useSocket'
 import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
 import EmojiLeaderboard from '../components/EmojiLeaderboard'
+import ActiveUsersLeaderboard from '../components/ActiveUsersLeaderboard'
 import CheckinStats from '../components/CheckinStats'
 import axios from 'axios'
 
@@ -465,6 +466,10 @@ export default function Control() {
       countdown: { icon: '⏱️', text: `${data.seconds || 0}s 倒计时开始`, color: '#40a9ff' },
       announcement: { icon: '📢', text: `公告: ${data.text || ''}`, color: '#eb2f96' },
       lucky_draw: { icon: '🎲', text: `抽奖: ${(data.winners || []).join(', ')} 中奖`, color: '#ffd700' },
+      poll_created: { icon: '📊', text: `发起投票: ${data.question || ''}`, color: '#40a9ff' },
+      poll_vote: { icon: '🗳️', text: `${data.nickname || '用户'} 投票: ${data.option || ''}`, color: '#40a9ff' },
+      poll_closed: { icon: '📊', text: '投票已关闭', color: '#40a9ff' },
+      system_message: { icon: '💬', text: `系统消息: ${data.text || ''}`, color: '#40a9ff' },
     }
     const info = labels[log.event_type] || { icon: '📌', text: log.event_type, color: '#666' }
     return { ...info, time }
@@ -748,6 +753,9 @@ export default function Control() {
 
             {/* Check-in Stats */}
             <CheckinStats socket={socket} />
+
+            {/* Active Users Leaderboard */}
+            <ActiveUsersLeaderboard socket={socket} />
 
             {/* Rebuild Progress */}
             <Card title="🔨 重建进度" style={styles.card} size="small">

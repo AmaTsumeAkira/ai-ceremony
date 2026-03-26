@@ -82,6 +82,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>弹幕排行榜</td><td>实时显示发送弹幕最多的用户 Top 10，含头像和弹幕数量</td></tr>
               <tr style={trStyle}><td style={tdLabel}>Emoji 反应榜</td><td>实时统计每种 Emoji 的发送次数和占比，前十名可视化展示，Socket 推送实时更新</td></tr>
               <tr style={trStyle}><td style={tdLabel}>签到统计</td><td>实时统计注册用户数、头像上传率、弹幕总数、Emoji 总数，含参与度分布条形图和最近加入用户列表</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>活跃用户排行榜</td><td>实时显示互动最频繁的用户 Top 10（综合弹幕、Emoji、头像上传次数）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
               <tr style={trStyle}><td style={tdLabel}>系统消息</td><td>向所有手机端发送系统提示消息，显示在用户界面顶部（点击可关闭，8秒自动消失）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>输入公告内容并发送，大屏全屏展示公告消息（可设置显示时长 3-15 秒，可随时取消）</td></tr>

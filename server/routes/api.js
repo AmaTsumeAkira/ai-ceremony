@@ -212,6 +212,30 @@ router.delete('/logs', requireExportAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/leaderboard/active-users — 活跃用户排行榜（需认证）
+router.get('/leaderboard/active-users', requireExportAuth, (req, res) => {
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 10, 50));
+  try {
+    const rows = db.prepare(`
+      SELECT u.id, u.nickname, u.face_url,
+        (SELECT COUNT(*) FROM danmaku d WHERE d.user_id = u.id) +
+        (SELECT COUNT(*) FROM ceremony_logs cl WHERE cl.event_type = 'emoji_send'
+          AND JSON_EXTRACT(cl.event_data, '$.nickname') = u.nickname) +
+        (CASE WHEN u.face_url IS NOT NULL THEN 1 ELSE 0 END) AS total_interactions
+      FROM users u
+      WHERE (SELECT COUNT(*) FROM danmaku d WHERE d.user_id = u.id) +
+        (SELECT COUNT(*) FROM ceremony_logs cl WHERE cl.event_type = 'emoji_send'
+          AND JSON_EXTRACT(cl.event_data, '$.nickname') = u.nickname) +
+        (CASE WHEN u.face_url IS NOT NULL THEN 1 ELSE 0 END) > 0
+      ORDER BY total_interactions DESC
+      LIMIT ?
+    `).all(limit);
+    res.json(rows);
+  } catch (e) {
+    res.json([]);
+  }
+});
+
 // GET /api/export/users — 导出用户数据为 CSV
 router.get('/export/users', requireExportAuth, (req, res) => {
   const rows = db.prepare(

@@ -41,6 +41,7 @@ export default function AnnouncementOverlay({ socket }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(0, 0, 0, 0.75)',
       backdropFilter: 'blur(8px)',
+      cursor: 'none',
       animation: 'announcementFadeIn 0.4s ease-out',
     }}>
       <div style={{

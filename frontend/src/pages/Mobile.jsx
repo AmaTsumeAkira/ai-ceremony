@@ -315,7 +315,7 @@ export default function Mobile() {
                 <span style={{ fontSize: 20 }}>📊</span>
                 <span style={styles.pollQuestion}>{activePoll.question}</span>
               </div>
-              {votedPollId === activePoll.id || (pollResults && activePoll.totalVotes > 0 && votedPollId) ? (
+              {votedPollId === activePoll.id ? (
                 <div style={styles.pollResults}>
                   {activePoll.options.map((opt, i) => {
                     const count = pollResults ? (pollResults.votes[i] || 0) : 0;
