@@ -85,6 +85,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>输入公告内容并发送，大屏全屏展示公告消息（可设置显示时长 3-15 秒，可随时取消）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>从已注册用户中随机抽取 1-10 位幸运观众，大屏全屏展示中奖名单（带动画效果）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>实时投票</td><td>创建投票问题和选项（2-6个），手机端实时投票，大屏展示动态柱状图结果。投票期间可随时关闭，关闭后可移除大屏显示</td></tr>
             </tbody>
           </table>
         </div>
@@ -102,6 +103,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>发弹幕</td><td>底部输入框输入内容，选颜色，点击发送</td></tr>
               <tr style={trStyle}><td style={tdLabel}>发 Emoji</td><td>点击底部 Emoji 栏的图标直接发送</td></tr>
               <tr style={trStyle}><td style={tdLabel}>选颜色</td><td>点击输入框左侧色块切换弹幕颜色（6色可选）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>投票</td><td>当控制端发起投票时，手机端显示投票选项，点击选项即投票，投票后实时显示结果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>当前状态</td><td>顶部显示当前大屏模式（待命/碎裂/马赛克等）</td></tr>
             </tbody>
           </table>
@@ -124,6 +126,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>马赛克</td><td>观众头像/Emoji 拼成圆形马赛克墙</td></tr>
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>控制台发送公告后大屏全屏展示，自动消失</td></tr>
               <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>控制台启动抽奖后大屏全屏展示，先滚动随机名字再揭晓中奖名单</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>实时投票</td><td>控制端发起投票后大屏全屏展示投票问题和动态柱状图，实时更新投票结果</td></tr>
             </tbody>
           </table>
         </div>
@@ -155,6 +158,9 @@ const Help = () => {
               <tr style={trStyle}><td style={tdCode}>GET /api/emoji/stats</td><td>Emoji 反应统计（每种 emoji 的发送次数和占比）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/logs</td><td>活动日志（可选 ?limit=50&type=xxx）</td></tr>
               <tr style={trStyle}><td style={tdCode}>DELETE /api/logs</td><td>清空活动日志（需认证）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET poll:create-poll</td><td>创建投票（需认证，{question, options}）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET poll:vote</td><td>投票（{pollId, optionIndex}）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET poll:get-active</td><td>获取当前活跃投票</td></tr>
             </tbody>
           </table>
         </div>

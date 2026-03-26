@@ -101,6 +101,12 @@ export default function Control() {
   // Activity log state
   const [activityLogs, setActivityLogs] = useState([])
 
+  // Poll state
+  const [pollQuestion, setPollQuestion] = useState('')
+  const [pollOptions, setPollOptions] = useState(['', ''])
+  const [activePoll, setActivePoll] = useState(null)
+  const [pollResults, setPollResults] = useState(null)
+
   // Audio refs
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)
@@ -197,7 +203,19 @@ export default function Control() {
     socket.on('control:users-count', handleUsersCount)
     socket.on('shatter:start', handleShatterStart)
 
+    // Poll listeners
+    const handlePollCreated = (data) => { setActivePoll(data); setPollResults(null); }
+    const handlePollResults = (data) => { if (data) setPollResults(data); }
+    const handlePollClosed = (data) => { if (data) { setPollResults(data); setActivePoll(prev => prev ? { ...prev, status: 'closed' } : null); } }
+    const handlePollActive = (data) => { if (data) { setActivePoll(data); setPollResults(data); } else { setActivePoll(null); setPollResults(null); } }
+
+    socket.on('poll:created', handlePollCreated)
+    socket.on('poll:results', handlePollResults)
+    socket.on('poll:closed', handlePollClosed)
+    socket.on('poll:active', handlePollActive)
+
     socket.emit('control:register')
+    socket.emit('poll:get-active')
 
     return () => {
       socket.off('control:state', handleState)
@@ -205,6 +223,10 @@ export default function Control() {
       socket.off('shatter:progress', handleProgress)
       socket.off('control:users-count', handleUsersCount)
       socket.off('shatter:start', handleShatterStart)
+      socket.off('poll:created', handlePollCreated)
+      socket.off('poll:results', handlePollResults)
+      socket.off('poll:closed', handlePollClosed)
+      socket.off('poll:active', handlePollActive)
     }
   }, [socket])
 
@@ -445,6 +467,43 @@ export default function Control() {
     } catch (e) {
       antMessage.error('清空失败')
     }
+  }
+
+  // ========== Poll Actions ==========
+  const handleCreatePoll = () => {
+    const cleanOptions = pollOptions.filter(o => o.trim())
+    if (!pollQuestion.trim()) { antMessage.warning('请输入投票问题'); return }
+    if (cleanOptions.length < 2) { antMessage.warning('至少需要 2 个选项'); return }
+    emit('control:create-poll', { question: pollQuestion.trim(), options: cleanOptions })
+    setPollQuestion('')
+    setPollOptions(['', ''])
+    antMessage.success('投票已发起')
+  }
+
+  const handleClosePoll = () => {
+    emit('control:close-poll')
+    antMessage.info('投票已关闭')
+  }
+
+  const handleHidePoll = () => {
+    emit('control:hide-poll')
+    setActivePoll(null)
+    setPollResults(null)
+    antMessage.info('投票已从大屏移除')
+  }
+
+  const addPollOption = () => {
+    if (pollOptions.length < 6) setPollOptions([...pollOptions, ''])
+  }
+
+  const removePollOption = (index) => {
+    if (pollOptions.length > 2) setPollOptions(pollOptions.filter((_, i) => i !== index))
+  }
+
+  const updatePollOption = (index, value) => {
+    const next = [...pollOptions]
+    next[index] = value
+    setPollOptions(next)
   }
 
   // ========== Periodic log refresh ==========
@@ -879,6 +938,78 @@ export default function Control() {
                 >
                   {drawSpinning ? '🎲 抽奖进行中...' : '🎲 开始抽奖'}
                 </Button>
+              </Space>
+            </Card>
+
+            {/* Real-time Poll */}
+            <Card title="📊 实时投票" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                {activePoll && activePoll.status === 'active' ? (
+                  <>
+                    <div style={{ padding: '8px 0' }}>
+                      <div style={{ color: '#40a9ff', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                        📌 {activePoll.question}
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                        共 {activePoll.totalVotes || 0} 人投票
+                      </div>
+                      {pollResults && pollResults.options.map((opt, i) => {
+                        const count = pollResults.votes[i] || 0;
+                        const pct = pollResults.totalVotes > 0 ? Math.round((count / pollResults.totalVotes) * 100) : 0;
+                        return (
+                          <div key={i} style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: '#fff', fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
+                            <Tag color="blue">{count} ({pct}%)</Tag>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <Row gutter={8}>
+                      <Col span={12}>
+                        <Button danger onClick={handleClosePoll} block style={styles.actionBtn}>关闭投票</Button>
+                      </Col>
+                      <Col span={12}>
+                        <Button onClick={handleHidePoll} block style={styles.actionBtn}>移除显示</Button>
+                      </Col>
+                    </Row>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      placeholder="投票问题"
+                      value={pollQuestion}
+                      onChange={(e) => setPollQuestion(e.target.value)}
+                      maxLength={50}
+                    />
+                    {pollOptions.map((opt, i) => (
+                      <Row key={i} gutter={8} align="middle">
+                        <Col flex="auto">
+                          <Input
+                            placeholder={`选项 ${i + 1}`}
+                            value={opt}
+                            onChange={(e) => updatePollOption(i, e.target.value)}
+                            maxLength={30}
+                          />
+                        </Col>
+                        {pollOptions.length > 2 && (
+                          <Col>
+                            <Button size="small" danger onClick={() => removePollOption(i)}>✕</Button>
+                          </Col>
+                        )}
+                      </Row>
+                    ))}
+                    {pollOptions.length < 6 && (
+                      <Button type="dashed" onClick={addPollOption} block size="small">+ 添加选项</Button>
+                    )}
+                    <Button type="primary" onClick={handleCreatePoll} block size="large"
+                      style={{ ...styles.actionBtn, background: '#40a9ff' }}>
+                      🚀 发起投票
+                    </Button>
+                    {activePoll && activePoll.status === 'closed' && (
+                      <Button onClick={handleHidePoll} block size="small">移除大屏显示</Button>
+                    )}
+                  </>
+                )}
               </Space>
             </Card>
 

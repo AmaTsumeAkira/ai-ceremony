@@ -32,10 +32,14 @@ export default function FaceUploader({ nickname, userId, avatarUrl, onUploaded }
     // Validate
     if (!file.type.startsWith('image/')) {
       antMessage.error('请选择图片文件')
+      uploadingRef.current = false
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
     if (file.size > 5 * 1024 * 1024) {
       antMessage.error('图片不能超过 5MB')
+      uploadingRef.current = false
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
@@ -69,6 +73,7 @@ export default function FaceUploader({ nickname, userId, avatarUrl, onUploaded }
       setUploading(false)
       setProgress(0)
       uploadingRef.current = false
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 

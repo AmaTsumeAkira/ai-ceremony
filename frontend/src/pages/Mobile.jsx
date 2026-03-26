@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Input, Button, message as antMessage, ConfigProvider, theme } from 'antd'
+import { Input, Button, message as antMessage, ConfigProvider, theme, Tag } from 'antd'
 import {
   SendOutlined,
   UploadOutlined,
@@ -40,6 +40,11 @@ export default function Mobile() {
   const [flyAnim, setFlyAnim] = useState(false)
   const hasJoinedRef = useRef(false)
 
+  // Poll state
+  const [activePoll, setActivePoll] = useState(null)
+  const [votedPollId, setVotedPollId] = useState(null)
+  const [pollResults, setPollResults] = useState(null)
+
   // Listen for mode changes
   useEffect(() => {
     if (!socket) return
@@ -66,11 +71,36 @@ export default function Mobile() {
     socket.on('control:state', handleState)
     socket.on('user:joined', handleJoined)
     socket.on('user:reconnected', handleReconnected)
+
+    // Poll listeners
+    const handlePollCreated = (data) => { setActivePoll(data); setPollResults(null); setVotedPollId(null); }
+    const handlePollResults = (data) => { if (data) { setPollResults(data); setActivePoll(data); } }
+    const handlePollClosed = (data) => { if (data) setPollResults(data); setActivePoll(prev => prev ? { ...prev, status: 'closed' } : null); }
+    const handlePollHidden = () => { setActivePoll(null); setPollResults(null); setVotedPollId(null); }
+    const handlePollActive = (data) => { if (data && data.status === 'active') { setActivePoll(data); setPollResults(data); } else if (data && data.status === 'closed') { setPollResults(data); } else { setActivePoll(null); setPollResults(null); } }
+    const handlePollVoted = (data) => { if (data) setVotedPollId(data.pollId); }
+
+    socket.on('poll:created', handlePollCreated)
+    socket.on('poll:results', handlePollResults)
+    socket.on('poll:closed', handlePollClosed)
+    socket.on('poll:hidden', handlePollHidden)
+    socket.on('poll:active', handlePollActive)
+    socket.on('poll:voted', handlePollVoted)
+
+    // Request current poll on connect
+    socket.emit('poll:get-active')
+
     return () => {
       socket.off('mode:changed', handleMode)
       socket.off('control:state', handleState)
       socket.off('user:joined', handleJoined)
       socket.off('user:reconnected', handleReconnected)
+      socket.off('poll:created', handlePollCreated)
+      socket.off('poll:results', handlePollResults)
+      socket.off('poll:closed', handlePollClosed)
+      socket.off('poll:hidden', handlePollHidden)
+      socket.off('poll:active', handlePollActive)
+      socket.off('poll:voted', handlePollVoted)
     }
   }, [socket])
 
@@ -136,6 +166,12 @@ export default function Mobile() {
 
   const handleAvatarUploaded = (url) => {
     setAvatarUrl(url)
+  }
+
+  const handleVote = (pollId, optionIndex) => {
+    if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
+    emit('poll:vote', { pollId, optionIndex })
+    setVotedPollId(pollId)
   }
 
   const getModeLabel = (mode) => {
@@ -243,6 +279,77 @@ export default function Mobile() {
             avatarUrl={avatarUrl}
             onUploaded={handleAvatarUploaded}
           />
+
+          {/* Poll Voting */}
+          {activePoll && activePoll.status === 'active' && (
+            <div style={styles.pollContainer}>
+              <div style={styles.pollHeader}>
+                <span style={{ fontSize: 20 }}>📊</span>
+                <span style={styles.pollQuestion}>{activePoll.question}</span>
+              </div>
+              {votedPollId === activePoll.id || (pollResults && activePoll.totalVotes > 0 && votedPollId) ? (
+                <div style={styles.pollResults}>
+                  {activePoll.options.map((opt, i) => {
+                    const count = pollResults ? (pollResults.votes[i] || 0) : 0;
+                    const pct = pollResults && pollResults.totalVotes > 0 ? Math.round((count / pollResults.totalVotes) * 100) : 0;
+                    return (
+                      <div key={i} style={styles.pollResultRow}>
+                        <div style={styles.pollResultBar}>
+                          <div style={{
+                            ...styles.pollResultFill,
+                            width: `${pct}%`,
+                          }} />
+                          <span style={styles.pollResultText}>{opt}</span>
+                        </div>
+                        <span style={styles.pollResultPct}>{pct}%</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+                    共 {pollResults ? pollResults.totalVotes : activePoll.totalVotes} 人投票
+                  </div>
+                </div>
+              ) : (
+                <div style={styles.pollOptions}>
+                  {activePoll.options.map((opt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleVote(activePoll.id, i)}
+                      style={styles.pollOptionBtn}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Poll ended */}
+          {pollResults && (!activePoll || activePoll.status === 'closed') && (
+            <div style={styles.pollContainer}>
+              <div style={styles.pollHeader}>
+                <span style={{ fontSize: 20 }}>📊</span>
+                <span style={styles.pollQuestion}>{pollResults.question}</span>
+                <Tag color="default" style={{ fontSize: 11 }}>已结束</Tag>
+              </div>
+              <div style={styles.pollResults}>
+                {pollResults.options.map((opt, i) => {
+                  const count = pollResults.votes[i] || 0;
+                  const pct = pollResults.totalVotes > 0 ? Math.round((count / pollResults.totalVotes) * 100) : 0;
+                  return (
+                    <div key={i} style={styles.pollResultRow}>
+                      <div style={styles.pollResultBar}>
+                        <div style={{ ...styles.pollResultFill, width: `${pct}%` }} />
+                        <span style={styles.pollResultText}>{opt}</span>
+                      </div>
+                      <span style={styles.pollResultPct}>{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Danmaku Input Area */}
@@ -517,5 +624,60 @@ const styles = {
     cursor: 'pointer',
     transition: 'transform 0.15s, background 0.15s',
     padding: 0,
+  },
+  pollContainer: {
+    marginTop: 20,
+    padding: '16px',
+    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    border: '1px solid rgba(64,169,255,0.2)',
+  },
+  pollHeader: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    marginBottom: 14,
+  },
+  pollQuestion: {
+    fontSize: 16, fontWeight: 700, color: '#fff', flex: 1,
+  },
+  pollOptions: {
+    display: 'flex', flexDirection: 'column', gap: 10,
+  },
+  pollOptionBtn: {
+    padding: '12px 16px',
+    fontSize: 15, fontWeight: 600,
+    color: '#fff',
+    background: 'rgba(64,169,255,0.15)',
+    border: '1px solid rgba(64,169,255,0.3)',
+    borderRadius: 12,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    textAlign: 'left',
+  },
+  pollResults: {
+    display: 'flex', flexDirection: 'column', gap: 8,
+  },
+  pollResultRow: {
+    display: 'flex', alignItems: 'center', gap: 10,
+  },
+  pollResultBar: {
+    flex: 1, position: 'relative',
+    height: 36, borderRadius: 8,
+    background: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  pollResultFill: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    background: 'linear-gradient(90deg, rgba(64,169,255,0.4), rgba(114,46,209,0.3))',
+    borderRadius: 8,
+    transition: 'width 0.5s ease',
+  },
+  pollResultText: {
+    position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+    fontSize: 14, fontWeight: 600, color: '#fff',
+    zIndex: 1,
+  },
+  pollResultPct: {
+    fontSize: 14, fontWeight: 700, color: '#40a9ff',
+    width: 40, textAlign: 'right', flexShrink: 0,
   },
 }

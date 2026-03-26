@@ -43,6 +43,27 @@ db.exec(`
   );
 `);
 
+// 投票表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS polls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question TEXT NOT NULL,
+    options TEXT NOT NULL,
+    status TEXT DEFAULT 'active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS poll_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    poll_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    option_index INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (poll_id) REFERENCES polls(id),
+    UNIQUE(poll_id, user_id)
+  );
+`);
+
 // 初始化默认系统状态
 const defaultStates = {
   mode: 'idle',

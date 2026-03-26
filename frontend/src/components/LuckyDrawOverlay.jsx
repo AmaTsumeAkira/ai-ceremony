@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const EMOJI_CELEBRATE = ['🎉', '🎊', '✨', '🌟', '💫', '🏆', '🎯', '💎'];
 
@@ -15,14 +15,14 @@ export default function LuckyDrawOverlay({ socket }) {
   const allUsersRef = useRef([]);
   const autoCloseRef = useRef(null);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
     autoCloseRef.current = null;
     setActive(false);
     setWinners([]);
     setPhase('spinning');
     setDisplayNickname('');
-  };
+  }, []);
 
   // Fetch all users for spinning effect
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function LuckyDrawOverlay({ socket }) {
     return () => {
       if (autoCloseRef.current) clearTimeout(autoCloseRef.current);
     };
-  }, [phase, active]);
+  }, [phase, active, handleClose]);
 
   if (!active) return null;
 

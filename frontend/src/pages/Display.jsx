@@ -7,6 +7,7 @@ import EmojiFloat from '../components/EmojiFloat';
 import CountdownOverlay from '../components/CountdownOverlay';
 import AnnouncementOverlay from '../components/AnnouncementOverlay';
 import LuckyDrawOverlay from '../components/LuckyDrawOverlay';
+import PollOverlay from '../components/PollOverlay';
 import QRCode from 'qrcode';
 import axios from 'axios';
 
@@ -282,6 +283,9 @@ export default function Display() {
 
       {/* Lucky Draw Overlay */}
       <LuckyDrawOverlay socket={socket} />
+
+      {/* Poll Overlay */}
+      <PollOverlay socket={socket} />
 
       <style>{`
         @keyframes fadeInScale {

@@ -118,6 +118,8 @@ function setupSocket(io) {
             console.log(`[User] reconnected: ${existing.nickname} (id=${existing.id})`);
             return;
           }
+          // reconnectUserId 无效，忽略该参数继续正常注册流程
+          console.log(`[User] reconnectUserId ${reconnectUserId} not found, registering new user`);
         }
         
         if (!nickname || !nickname.trim()) {
@@ -538,6 +540,104 @@ function checkDanmakuRate(socketId) {
       logEvent('lucky_draw', { winners: users.map(u => u.nickname), count: users.length });
       console.log(`[LuckyDraw] winners: ${users.map(u => u.nickname).join(', ')}`);
     }));
+
+    // ========== 投票系统 ==========
+    socket.on('control:create-poll', requireAuth((data) => {
+      const { question, options } = data;
+      if (!question || !question.trim()) {
+        return socket.emit('error', { message: '投票问题不能为空' });
+      }
+      if (!options || !Array.isArray(options) || options.filter(o => o && o.trim()).length < 2) {
+        return socket.emit('error', { message: '至少需要 2 个有效选项' });
+      }
+      const cleanOptions = options.filter(o => o && o.trim()).map(o => o.trim()).slice(0, 6);
+      // 关闭之前的活跃投票
+      db.prepare("UPDATE polls SET status = 'closed' WHERE status = 'active'").run();
+      const stmt = db.prepare('INSERT INTO polls (question, options) VALUES (?, ?)');
+      const result = stmt.run(question.trim(), JSON.stringify(cleanOptions));
+      const poll = {
+        id: result.lastInsertRowid,
+        question: question.trim(),
+        options: cleanOptions,
+        status: 'active',
+        votes: cleanOptions.map(() => 0),
+        totalVotes: 0,
+      };
+      io.emit('poll:created', poll);
+      logEvent('poll_created', { question: poll.question, options: cleanOptions });
+      console.log(`[Poll] created: "${poll.question}" (${cleanOptions.length} options)`);
+    }));
+
+    socket.on('control:close-poll', requireAuth(() => {
+      const poll = db.prepare("SELECT id FROM polls WHERE status = 'active' ORDER BY id DESC LIMIT 1").get();
+      if (!poll) return;
+      db.prepare("UPDATE polls SET status = 'closed' WHERE id = ?").run(poll.id);
+      const results = getPollResults(poll.id);
+      io.emit('poll:closed', results);
+      logEvent('poll_closed', { poll_id: poll.id });
+      console.log(`[Poll] closed: id=${poll.id}`);
+    }));
+
+    socket.on('control:hide-poll', requireAuth(() => {
+      io.emit('poll:hidden');
+      console.log('[Poll] hidden from display');
+    }));
+
+    function getPollResults(pollId) {
+      const poll = db.prepare('SELECT * FROM polls WHERE id = ?').get(pollId);
+      if (!poll) return null;
+      const options = JSON.parse(poll.options);
+      const votes = options.map(() => 0);
+      const rows = db.prepare('SELECT option_index, COUNT(*) as cnt FROM poll_votes WHERE poll_id = ? GROUP BY option_index').all(pollId);
+      let totalVotes = 0;
+      for (const row of rows) {
+        if (row.option_index >= 0 && row.option_index < options.length) {
+          votes[row.option_index] = row.cnt;
+          totalVotes += row.cnt;
+        }
+      }
+      return { id: poll.id, question: poll.question, options, votes, totalVotes, status: poll.status };
+    }
+
+    // 用户投票
+    socket.on('poll:vote', (data) => {
+      const { pollId, optionIndex } = data;
+      if (!socket.userId) {
+        return socket.emit('error', { message: '请先注册' });
+      }
+      const poll = db.prepare("SELECT * FROM polls WHERE id = ? AND status = 'active'").get(pollId);
+      if (!poll) {
+        return socket.emit('error', { message: '投票不存在或已结束' });
+      }
+      const options = JSON.parse(poll.options);
+      if (optionIndex < 0 || optionIndex >= options.length) {
+        return socket.emit('error', { message: '无效选项' });
+      }
+      try {
+        db.prepare('INSERT INTO poll_votes (poll_id, user_id, option_index) VALUES (?, ?, ?)').run(pollId, socket.userId, optionIndex);
+      } catch (e) {
+        if (e.message.includes('UNIQUE')) {
+          return socket.emit('error', { message: '你已经投过票了' });
+        }
+        throw e;
+      }
+      socket.emit('poll:voted', { pollId, optionIndex });
+      const results = getPollResults(pollId);
+      io.emit('poll:results', results);
+      logEvent('poll_vote', { nickname: socket.userNickname, poll_id: pollId, option: options[optionIndex] });
+      console.log(`[Poll] vote: ${socket.userNickname} → option ${optionIndex} (${options[optionIndex]})`);
+    });
+
+    // 获取当前活跃投票
+    socket.on('poll:get-active', () => {
+      const poll = db.prepare("SELECT * FROM polls WHERE status = 'active' ORDER BY id DESC LIMIT 1").get();
+      if (poll) {
+        const results = getPollResults(poll.id);
+        socket.emit('poll:active', results);
+      } else {
+        socket.emit('poll:active', null);
+      }
+    });
 
     // ========== 断开连接 ==========
     socket.on('disconnect', () => {
