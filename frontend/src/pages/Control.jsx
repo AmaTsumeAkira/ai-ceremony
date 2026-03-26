@@ -35,6 +35,7 @@ import {
 import { useSocket } from '../hooks/useSocket'
 import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
 import EmojiLeaderboard from '../components/EmojiLeaderboard'
+import CheckinStats from '../components/CheckinStats'
 import axios from 'axios'
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -672,6 +673,9 @@ export default function Control() {
                 <Col span={12}><Statistic title="当前模式" value={MODES.find(m => m.value === currentMode)?.label} prefix={<FireOutlined />} valueStyle={{ color: getModeColor(currentMode) }} /></Col>
               </Row>
             </Card>
+
+            {/* Check-in Stats */}
+            <CheckinStats socket={socket} />
 
             {/* Rebuild Progress */}
             <Card title="🔨 重建进度" style={styles.card} size="small">

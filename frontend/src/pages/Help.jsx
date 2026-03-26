@@ -81,6 +81,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>导出签到记录</td><td>批量导出签到记录为 CSV 文件（含用户ID、昵称、是否上传头像、注册时间、弹幕数、Emoji数）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕排行榜</td><td>实时显示发送弹幕最多的用户 Top 10，含头像和弹幕数量</td></tr>
               <tr style={trStyle}><td style={tdLabel}>Emoji 反应榜</td><td>实时统计每种 Emoji 的发送次数和占比，前十名可视化展示，Socket 推送实时更新</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>签到统计</td><td>实时统计注册用户数、头像上传率、弹幕总数、Emoji 总数，含参与度分布条形图和最近加入用户列表</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>输入公告内容并发送，大屏全屏展示公告消息（可设置显示时长 3-15 秒，可随时取消）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>从已注册用户中随机抽取 1-10 位幸运观众，大屏全屏展示中奖名单（带动画效果）</td></tr>

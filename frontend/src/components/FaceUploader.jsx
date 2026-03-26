@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Button, message as antMessage, Progress } from 'antd'
 import { CameraOutlined, CheckCircleFilled, UploadOutlined } from '@ant-design/icons'
 import axios from 'axios'
@@ -13,6 +13,13 @@ export default function FaceUploader({ nickname, userId, avatarUrl, onUploaded }
   const [progress, setProgress] = useState(0)
   const fileInputRef = useRef(null)
   const uploadingRef = useRef(false) // 防止重复上传
+
+  // 同步外部 avatarUrl 变化到本地预览
+  useEffect(() => {
+    if (avatarUrl && !uploadingRef.current) {
+      setPreviewUrl(avatarUrl)
+    }
+  }, [avatarUrl])
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0]
