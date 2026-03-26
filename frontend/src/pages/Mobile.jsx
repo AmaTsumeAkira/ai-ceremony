@@ -40,6 +40,10 @@ export default function Mobile() {
   const [flyAnim, setFlyAnim] = useState(false)
   const hasJoinedRef = useRef(false)
 
+  // Nickname edit state
+  const [editingNickname, setEditingNickname] = useState(false)
+  const [newNickname, setNewNickname] = useState('')
+
   // Poll state
   const [activePoll, setActivePoll] = useState(null)
   const [votedPollId, setVotedPollId] = useState(null)
@@ -95,6 +99,18 @@ export default function Mobile() {
       setSystemMsg(data.text)
     })
 
+    // Nickname change result
+    socket.on('user:nickname-changed', (data) => {
+      if (data.ok) {
+        setNickname(data.nickname)
+        localStorage.setItem('ai_ceremony_nickname', data.nickname)
+        setEditingNickname(false)
+        antMessage.success('昵称修改成功！')
+      } else {
+        antMessage.error(data.message || '修改失败')
+      }
+    })
+
     // Request current poll on connect
     socket.emit('poll:get-active')
 
@@ -110,6 +126,7 @@ export default function Mobile() {
       socket.off('poll:active', handlePollActive)
       socket.off('poll:voted', handlePollVoted)
       socket.off('system:message')
+      socket.off('user:nickname-changed')
     }
   }, [socket])
 
@@ -188,6 +205,13 @@ export default function Mobile() {
     if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
     emit('poll:vote', { pollId, optionIndex })
     setVotedPollId(pollId)
+  }
+
+  const handleChangeNickname = () => {
+    if (!newNickname.trim()) { antMessage.warning('请输入新昵称'); return }
+    if (newNickname.trim() === nickname) { setEditingNickname(false); return }
+    if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
+    emit('user:change-nickname', { nickname: newNickname.trim() })
   }
 
   const getModeLabel = (mode) => {
@@ -273,7 +297,13 @@ export default function Mobile() {
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
-            <span style={styles.nickname}>👤 {nickname}</span>
+            <span
+              style={{ ...styles.nickname, cursor: 'pointer' }}
+              onClick={() => { setNewNickname(nickname); setEditingNickname(true) }}
+              title="点击修改昵称"
+            >
+              👤 {nickname} ✏️
+            </span>
           </div>
           <div style={styles.headerRight}>
             <span style={{
@@ -286,6 +316,29 @@ export default function Mobile() {
             </span>
           </div>
         </div>
+
+        {/* Nickname Edit Modal */}
+        {editingNickname && (
+          <div style={styles.modalOverlay} onClick={() => setEditingNickname(false)}>
+            <div style={styles.modalCard} onClick={e => e.stopPropagation()}>
+              <h3 style={{ color: '#fff', margin: '0 0 16px', fontSize: 18, textAlign: 'center' }}>修改昵称</h3>
+              <Input
+                placeholder="输入新昵称"
+                value={newNickname}
+                onChange={e => setNewNickname(e.target.value)}
+                onPressEnter={handleChangeNickname}
+                maxLength={12}
+                size="large"
+                style={{ marginBottom: 16 }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button block onClick={() => setEditingNickname(false)}>取消</Button>
+                <Button type="primary" block onClick={handleChangeNickname}>确认修改</Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* System Message */}
         {systemMsg && (
@@ -722,5 +775,17 @@ const styles = {
   pollResultPct: {
     fontSize: 14, fontWeight: 700, color: '#40a9ff',
     width: 40, textAlign: 'right', flexShrink: 0,
+  },
+  modalOverlay: {
+    position: 'fixed', inset: 0, zIndex: 9999,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+  },
+  modalCard: {
+    width: '85%', maxWidth: 360, padding: '24px 20px',
+    background: 'linear-gradient(135deg, #1a1a2e, #0d1b3e)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
   },
 }

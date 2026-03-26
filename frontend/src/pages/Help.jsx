@@ -107,6 +107,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>选颜色</td><td>点击输入框左侧色块切换弹幕颜色（6色可选）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>投票</td><td>当控制端发起投票时，手机端显示投票选项，点击选项即投票，投票后实时显示结果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>系统消息</td><td>控制端发送的系统提示会显示在界面顶部，点击可关闭，8秒自动消失</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>修改昵称</td><td>点击顶部昵称区域，弹出修改框，输入新昵称后确认即可修改（12字以内，不可与他人重复）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>当前状态</td><td>顶部显示当前大屏模式（待命/碎裂/马赛克等）</td></tr>
             </tbody>
           </table>
@@ -164,6 +165,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdCode}>SOCKET poll:create-poll</td><td>创建投票（需认证，{question, options}）</td></tr>
               <tr style={trStyle}><td style={tdCode}>SOCKET poll:vote</td><td>投票（{pollId, optionIndex}）</td></tr>
               <tr style={trStyle}><td style={tdCode}>SOCKET poll:get-active</td><td>获取当前活跃投票</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET user:change-nickname</td><td>修改昵称（{nickname}，需已注册，返回 user:nickname-changed 事件）</td></tr>
             </tbody>
           </table>
         </div>

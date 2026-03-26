@@ -34,9 +34,22 @@ router.post('/user/register', (req, res) => {
   if (!nickname || !nickname.trim()) {
     return res.status(400).json({ error: 'nickname 不能为空' });
   }
+  if (nickname.trim().length > 12) {
+    return res.status(400).json({ error: '昵称不能超过 12 个字符' });
+  }
+  // 昵称去重：若已存在则追加数字后缀
+  let finalNickname = nickname.trim();
+  const existing = db.prepare('SELECT nickname FROM users WHERE nickname = ?').get(finalNickname);
+  if (existing) {
+    let suffix = 2;
+    while (db.prepare('SELECT nickname FROM users WHERE nickname = ?').get(`${finalNickname}_${suffix}`)) {
+      suffix++;
+    }
+    finalNickname = `${finalNickname}_${suffix}`;
+  }
   const stmt = db.prepare('INSERT INTO users (nickname) VALUES (?)');
-  const result = stmt.run(nickname.trim());
-  res.json({ id: result.lastInsertRowid, nickname: nickname.trim() });
+  const result = stmt.run(finalNickname);
+  res.json({ id: result.lastInsertRowid, nickname: finalNickname });
 });
 
 // POST /api/user/upload-face — 上传头像文件

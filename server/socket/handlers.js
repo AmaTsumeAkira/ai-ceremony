@@ -71,13 +71,15 @@ function setupSocket(io) {
   }, 30000);
 
   // 清理 interval 防止进程退出时悬挂
-  io.on('close', () => {
+  const cleanup = () => {
     clearInterval(rateLimitCleanup);
     if (decayInterval) {
       clearInterval(decayInterval);
       decayInterval = null;
     }
-  });
+  };
+  process.on('SIGTERM', cleanup);
+  process.on('SIGINT', cleanup);
 
   io.on('connection', (socket) => {
     console.log(`[Socket] connected: ${socket.id}`);
@@ -167,6 +169,40 @@ function setupSocket(io) {
         console.log(`[User] ${finalNickname} joined, id=${result.lastInsertRowid}`);
       } catch (err) {
         socket.emit('error', { message: err.message });
+      }
+    });
+
+    // ========== 修改昵称 ==========
+    socket.on('user:change-nickname', (data) => {
+      try {
+        if (!socket.userId) {
+          return socket.emit('error', { message: '请先注册' });
+        }
+        const { nickname } = data;
+        if (!nickname || !nickname.trim()) {
+          return socket.emit('user:nickname-changed', { ok: false, message: '昵称不能为空' });
+        }
+        const trimmed = nickname.trim();
+        if (trimmed.length > 12) {
+          return socket.emit('user:nickname-changed', { ok: false, message: '昵称不能超过 12 个字符' });
+        }
+        if (trimmed === socket.userNickname) {
+          return socket.emit('user:nickname-changed', { ok: false, message: '新昵称与当前昵称相同' });
+        }
+        // 检查昵称是否已被占用
+        const existing = db.prepare('SELECT id, nickname FROM users WHERE nickname = ?').get(trimmed);
+        if (existing && existing.id !== socket.userId) {
+          return socket.emit('user:nickname-changed', { ok: false, message: '该昵称已被占用' });
+        }
+        db.prepare('UPDATE users SET nickname = ? WHERE id = ?').run(trimmed, socket.userId);
+        const oldNickname = socket.userNickname;
+        socket.userNickname = trimmed;
+        socket.emit('user:nickname-changed', { ok: true, nickname: trimmed });
+        broadcastUsersCount(io);
+        logEvent('nickname_change', { old: oldNickname, new: trimmed, id: socket.userId });
+        console.log(`[User] nickname changed: ${oldNickname} → ${trimmed} (id=${socket.userId})`);
+      } catch (err) {
+        socket.emit('user:nickname-changed', { ok: false, message: err.message });
       }
     });
 
