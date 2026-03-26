@@ -122,12 +122,12 @@ function setupSocket(io) {
       }
     });
 
-    socket.on('user:upload-face', (data) => {
+    socket.on('user:upload-face', async (data) => {
       try {
         const { base64, filename } = data;
         if (!base64) return socket.emit('error', { message: '无图片数据' });
 
-        const fs = require('fs');
+        const fs = require('fs').promises;
         const path = require('path');
 
         const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
@@ -141,10 +141,14 @@ function setupSocket(io) {
 
         const ext = imgExt;
         const buffer = Buffer.from(matches[2], 'base64');
+        // 限制图片大小 5MB
+        if (buffer.length > 5 * 1024 * 1024) {
+          return socket.emit('error', { message: '图片不能超过 5MB' });
+        }
         const fname = `face_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const filepath = path.join(__dirname, '..', 'uploads', fname);
 
-        fs.writeFileSync(filepath, buffer);
+        await fs.writeFile(filepath, buffer);
 
         const faceUrl = `/uploads/${fname}`;
         if (socket.userId) {
