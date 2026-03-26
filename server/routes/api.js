@@ -132,8 +132,17 @@ router.post('/upload-background', bgUpload.single('image'), (req, res) => {
   res.json({ url: bgUrl });
 });
 
+// 导出端点认证中间点
+function requireExportAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
+    return res.status(401).json({ error: '未认证' });
+  }
+  next();
+}
+
 // GET /api/export/users — 导出用户数据为 CSV
-router.get('/export/users', (req, res) => {
+router.get('/export/users', requireExportAuth, (req, res) => {
   const rows = db.prepare(
     `SELECT u.id, u.nickname, u.face_url, u.created_at,
             (SELECT COUNT(*) FROM danmaku d WHERE d.user_id = u.id) as danmaku_count
@@ -152,7 +161,7 @@ router.get('/export/users', (req, res) => {
 });
 
 // GET /api/export/danmaku — 导出弹幕数据为 CSV
-router.get('/export/danmaku', (req, res) => {
+router.get('/export/danmaku', requireExportAuth, (req, res) => {
   const rows = db.prepare(
     `SELECT d.id, d.user_id, u.nickname, d.content, d.color, d.created_at
      FROM danmaku d LEFT JOIN users u ON d.user_id = u.id

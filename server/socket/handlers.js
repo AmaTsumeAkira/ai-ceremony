@@ -1,8 +1,13 @@
 const db = require('../db');
 
-// 重建能量系统状态
+// 重建能量系统状态（从数据库加载）
 let energy = 0;
-let threshold = 1000;
+let threshold = (() => {
+  try {
+    const row = db.prepare("SELECT value FROM system_state WHERE key = 'threshold'").get();
+    return row ? Number(row.value) : 1000;
+  } catch { return 1000; }
+})();
 let decayInterval = null;
 
 // ========== 认证状态 ==========
@@ -117,7 +122,13 @@ function setupSocket(io) {
         const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!matches) return socket.emit('error', { message: 'base64 格式错误' });
 
-        const ext = matches[1].split('/')[1] === 'jpeg' ? 'jpg' : matches[1].split('/')[1];
+        const allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const imgExt = matches[1].split('/')[1] === 'jpeg' ? 'jpg' : matches[1].split('/')[1];
+        if (!allowedTypes.includes(imgExt)) {
+          return socket.emit('error', { message: '只支持 jpg/png/gif/webp 格式' });
+        }
+
+        const ext = imgExt;
         const buffer = Buffer.from(matches[2], 'base64');
         const fname = `face_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const filepath = path.join(__dirname, '..', 'uploads', fname);
@@ -212,17 +223,7 @@ function setupSocket(io) {
       console.log(`[Display] registered: ${socket.id}`);
     });
 
-    socket.on('control:set-threshold', requireAuth((data) => {
-      const { value } = data;
-      if (typeof value === 'number' && value > 0) {
-        threshold = value;
-        db.prepare("UPDATE system_state SET value = ? WHERE key = 'threshold'").run(String(value));
-        broadcastState(io);
-        console.log(`[Control] threshold set to ${value}`);
-      }
-    }));
-
-    // 能量阈值设置（从控制端同步）
+    // 能量阈值设置
     socket.on('control:set-energy-threshold', requireAuth((data) => {
       const { value } = data;
       if (typeof value === 'number' && value > 0) {
@@ -322,13 +323,15 @@ function setupSocket(io) {
 
     // ========== 麦克风音量 ==========
     socket.on('control:voice-level', requireAuth((data) => {
-      const { level, threshold: clientThreshold, energyThreshold: clientEnergyThreshold } = data;
+      const { level, threshold: shoutThreshold, energyThreshold: clientEnergyThreshold } = data;
       // 同步客户端设置的阈值
       if (typeof clientEnergyThreshold === 'number' && clientEnergyThreshold > 0 && clientEnergyThreshold !== threshold) {
         threshold = clientEnergyThreshold;
         db.prepare("UPDATE system_state SET value = ? WHERE key = 'threshold'").run(String(threshold));
       }
-      if (typeof level === 'number' && level >= 0 && level <= 100) {
+      // shoutThreshold: 音量门限，低于此值不计入能量
+      const minLevel = typeof shoutThreshold === 'number' ? shoutThreshold : 0;
+      if (typeof level === 'number' && level >= 0 && level <= 100 && level >= minLevel) {
         energy += level * 0.1;
         const progress = getEnergyProgress();
         io.emit('shatter:progress', progress);
