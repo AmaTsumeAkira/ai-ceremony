@@ -396,6 +396,22 @@ function setupSocket(io) {
       console.log(`[Control] mosaic preview: ${enabled ? 'ON' : 'OFF'}`);
     }));
 
+    // ========== 公告弹窗 ==========
+    socket.on('control:announcement', requireAuth((data) => {
+      const { text, duration } = data;
+      if (typeof text === 'string' && text.trim()) {
+        const dur = Math.max(3, Math.min(Number(duration) || 5, 30));
+        io.emit('display:announcement', { text: text.trim(), duration: dur });
+        logEvent('announcement', { text: text.trim(), duration: dur });
+        console.log(`[Control] announcement: "${text.trim()}" (${dur}s)`);
+      }
+    }));
+
+    socket.on('control:announcement-cancel', requireAuth(() => {
+      io.emit('display:announcement-cancel');
+      console.log('[Control] announcement cancelled');
+    }));
+
     // ========== 断开连接 ==========
     socket.on('disconnect', () => {
       authenticatedSockets.delete(socket.id);

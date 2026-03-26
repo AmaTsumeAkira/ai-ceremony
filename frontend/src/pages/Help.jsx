@@ -78,6 +78,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>导出用户</td><td>导出所有注册用户数据为 CSV 文件（含昵称、头像、弹幕数）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>导出弹幕</td><td>导出所有弹幕记录为 CSV 文件（含内容、颜色、时间）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>输入公告内容并发送，大屏全屏展示公告消息（可设置显示时长 3-15 秒，可随时取消）</td></tr>
             </tbody>
           </table>
         </div>
@@ -115,6 +116,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>Emoji</td><td>观众发送的 Emoji 从底部飘起</td></tr>
               <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>控制台启动后大屏全屏显示倒计时数字</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克</td><td>观众头像/Emoji 拼成圆形马赛克墙</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>控制台发送公告后大屏全屏展示，自动消失</td></tr>
             </tbody>
           </table>
         </div>

@@ -86,6 +86,11 @@ export default function Control() {
   // Mosaic preview state
   const [mosaicPreview, setMosaicPreview] = useState(false)
 
+  // Announcement state
+  const [announcementText, setAnnouncementText] = useState('')
+  const [announcementDuration, setAnnouncementDuration] = useState(5)
+  const [announcementActive, setAnnouncementActive] = useState(false)
+
   // Activity log state
   const [activityLogs, setActivityLogs] = useState([])
 
@@ -322,6 +327,23 @@ export default function Control() {
     antMessage.success('背景已清除')
   }
 
+  const handleAnnouncement = () => {
+    if (!announcementText.trim()) {
+      antMessage.warning('请输入公告内容')
+      return
+    }
+    emit('control:announcement', { text: announcementText.trim(), duration: announcementDuration })
+    setAnnouncementActive(true)
+    antMessage.success('📢 公告已发送到大屏')
+    setTimeout(() => setAnnouncementActive(false), announcementDuration * 1000 + 1000)
+  }
+
+  const handleAnnouncementCancel = () => {
+    emit('control:announcement-cancel')
+    setAnnouncementActive(false)
+    antMessage.warning('📢 公告已取消')
+  }
+
   const handleExportUsers = () => {
     window.open(`${API_BASE}/api/export/users`, '_blank')
     antMessage.success('用户数据已导出')
@@ -349,6 +371,7 @@ export default function Control() {
       rebuild: { icon: '🔨', text: '粒子重建触发', color: '#52c41a' },
       agenda: { icon: '📋', text: `阶段: ${data.label || ''}`, color: '#13c2c2' },
       countdown: { icon: '⏱️', text: `${data.seconds || 0}s 倒计时开始`, color: '#40a9ff' },
+      announcement: { icon: '📢', text: `公告: ${data.text || ''}`, color: '#eb2f96' },
     }
     const info = labels[log.event_type] || { icon: '📌', text: log.event_type, color: '#666' }
     return { ...info, time }
@@ -662,6 +685,61 @@ export default function Control() {
                     当前: {backgroundUrl}
                   </div>
                 )}
+              </Space>
+            </Card>
+
+            {/* Announcement */}
+            <Card title="📢 公告弹窗" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: 0 }}>
+                  发送公告消息到大屏幕，全屏显示
+                </p>
+                <Input.TextArea
+                  placeholder="输入公告内容..."
+                  value={announcementText}
+                  onChange={(e) => setAnnouncementText(e.target.value)}
+                  maxLength={100}
+                  rows={2}
+                  style={{ borderRadius: 8 }}
+                />
+                <div style={styles.sliderLabel}>
+                  <span>显示时长</span>
+                  <Tag color="blue">{announcementDuration}s</Tag>
+                </div>
+                <Slider
+                  min={3}
+                  max={15}
+                  value={announcementDuration}
+                  onChange={setAnnouncementDuration}
+                  trackStyle={{ background: 'linear-gradient(90deg, #40a9ff, #eb2f96)' }}
+                />
+                <Row gutter={8}>
+                  <Col span={announcementActive ? 14 : 24}>
+                    <Button
+                      type="primary"
+                      onClick={handleAnnouncement}
+                      disabled={announcementActive}
+                      block
+                      size="large"
+                      style={{ ...styles.actionBtn, background: '#eb2f96' }}
+                    >
+                      {announcementActive ? '📢 显示中...' : '📢 发送公告'}
+                    </Button>
+                  </Col>
+                  {announcementActive && (
+                    <Col span={10}>
+                      <Button
+                        danger
+                        onClick={handleAnnouncementCancel}
+                        block
+                        size="large"
+                        style={styles.actionBtn}
+                      >
+                        ✖ 取消
+                      </Button>
+                    </Col>
+                  )}
+                </Row>
               </Space>
             </Card>
 

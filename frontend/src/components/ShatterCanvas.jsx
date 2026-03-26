@@ -106,7 +106,8 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
 
     // Generate particles — use larger canvas for better quality
     const textPoints = generateTextParticles(particleText, 1024, 512)
-    const count = Math.min(PARTICLE_COUNT, textPoints.length)
+    const textCount = Math.min(PARTICLE_COUNT, textPoints.length)
+    const count = PARTICLE_COUNT
 
     const positions = new Float32Array(count * 3)
     const targets = new Float32Array(count * 3)
@@ -118,7 +119,23 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
     const colorB = new THREE.Color('#722ed1')
     const colorC = new THREE.Color('#eb2f96')
 
-    for (let i = 0; i < count; i++) {
+    // Initialize ALL particles to hidden offscreen first
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const i3 = i * 3
+      positions[i3] = -100
+      positions[i3 + 1] = -100
+      positions[i3 + 2] = -100
+      targets[i3] = -100
+      targets[i3 + 1] = -100
+      targets[i3 + 2] = -100
+      velocities[i3] = 0
+      velocities[i3 + 1] = 0
+      velocities[i3 + 2] = 0
+      sizes[i] = 0
+    }
+
+    // Now set up actual text particles (only textCount of them)
+    for (let i = 0; i < textCount; i++) {
       const p = textPoints[i]
       const i3 = i * 3
 
@@ -138,7 +155,7 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
       velocities[i3 + 2] = 0
 
       // Color gradient
-      const t = i / count
+      const t = i / textCount
       const color = t < 0.5
         ? colorA.clone().lerp(colorB, t * 2)
         : colorB.clone().lerp(colorC, (t - 0.5) * 2)
@@ -190,7 +207,7 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
 
     const particles = new THREE.Points(geometry, material)
     scene.add(particles)
-    particlesRef.current = { geometry, material, targets, velocities, count }
+    particlesRef.current = { geometry, material, targets, velocities, count, textCount }
 
     // Animation loop
     const animate = () => {
@@ -202,13 +219,18 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
 
       material.uniforms.uTime.value = time
       const pos = geometry.attributes.position.array
+      const tc = particlesRef.current?.textCount || textCount
 
       if (stateRef.current === 'shattering') {
         // Shatter: give random velocity with friction decay
+        // Only assign velocities to active text particles on first frame (when velocity is zero AND near their target)
         let allGone = true
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < tc; i++) {
           const i3 = i * 3
-          if (velocities[i3] === 0 && velocities[i3 + 1] === 0) {
+          const tx = targets[i3], ty = targets[i3 + 1], tz = targets[i3 + 2]
+          const dx = pos[i3] - tx, dy = pos[i3 + 1] - ty, dz = pos[i3 + 2] - tz
+          const distFromTarget = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          if (distFromTarget < 0.1 && velocities[i3] === 0 && velocities[i3 + 1] === 0) {
             const angle = Math.random() * Math.PI * 2
             const speed = 2 + Math.random() * 4
             const phi = Math.random() * Math.PI
@@ -241,7 +263,7 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
       } else if (stateRef.current === 'rebuilding') {
         // Rebuild: move toward target
         let settled = 0
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < tc; i++) {
           const i3 = i * 3
           const dx = targets[i3] - pos[i3]
           const dy = targets[i3 + 1] - pos[i3 + 1]
@@ -263,14 +285,28 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
             pos[i3 + 2] += (dz / dist) * speed * delta
           }
         }
-        progressRef.current = Math.round((settled / count) * 100)
+        // Force extra particles to their offscreen targets
+        for (let i = tc; i < count; i++) {
+          const i3 = i * 3
+          pos[i3] = targets[i3]
+          pos[i3 + 1] = targets[i3 + 1]
+          pos[i3 + 2] = targets[i3 + 2]
+        }
+        progressRef.current = Math.round((settled / tc) * 100)
         geometry.attributes.position.needsUpdate = true
       } else {
-        // Idle: gentle float
-        for (let i = 0; i < count; i++) {
+        // Idle: gentle float for active text particles only
+        for (let i = 0; i < tc; i++) {
           const i3 = i * 3
           pos[i3] = targets[i3] + Math.sin(time * 0.5 + i * 0.01) * 0.02
           pos[i3 + 1] = targets[i3 + 1] + Math.cos(time * 0.3 + i * 0.02) * 0.02
+        }
+        // Keep extra particles hidden at their offscreen positions
+        for (let i = tc; i < count; i++) {
+          const i3 = i * 3
+          pos[i3] = targets[i3]
+          pos[i3 + 1] = targets[i3 + 1]
+          pos[i3 + 2] = targets[i3 + 2]
         }
         geometry.attributes.position.needsUpdate = true
       }
@@ -340,16 +376,27 @@ export default function ShatterCanvas({ mode, rebuildProgress, particleText = 'A
     const width = container.clientWidth
     const height = container.clientHeight
     const textPoints = generateTextParticles(particleText, 1024, 512)
-    const count = Math.min(PARTICLE_COUNT, textPoints.length)
+    const newTextCount = Math.min(PARTICLE_COUNT, textPoints.length)
 
-    // Update targets and velocities
-    for (let i = 0; i < count; i++) {
+    // Reset ALL targets to offscreen first (for old excess particles)
+    for (let i = 0; i < p.count; i++) {
+      const i3 = i * 3
+      p.targets[i3] = -100
+      p.targets[i3 + 1] = -100
+      p.targets[i3 + 2] = -100
+    }
+
+    // Set new text targets
+    for (let i = 0; i < newTextCount; i++) {
       const i3 = i * 3
       const tp = textPoints[i]
       p.targets[i3] = tp.x
       p.targets[i3 + 1] = tp.y
       p.targets[i3 + 2] = tp.z
     }
+
+    // Update the active text count
+    p.textCount = newTextCount
 
     // Trigger rebuild animation to morph into new text
     stateRef.current = 'rebuilding'

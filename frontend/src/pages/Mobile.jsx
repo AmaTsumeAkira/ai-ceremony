@@ -248,6 +248,7 @@ export default function Mobile() {
                 key={e}
                 onClick={() => handleSendEmoji(e)}
                 style={styles.emojiBtn}
+                disabled={!connected}
               >
                 {e}
               </button>
