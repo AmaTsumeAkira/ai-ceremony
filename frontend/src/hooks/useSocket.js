@@ -10,38 +10,44 @@ const SERVER_URL = window.location.hostname === 'localhost'
 export function useSocket() {
   const socketRef = useRef(null)
   const [connected, setConnected] = useState(false)
+  const [socket, setSocket] = useState(null)
 
   useEffect(() => {
-    const socket = io(SERVER_URL, {
+    const s = io(SERVER_URL, {
       // 微信内置浏览器可能阻止 WebSocket，允许 polling 降级
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 10000,
       // 存储 userId 到 localStorage 用于断线重连恢复身份
       auth: {
         userId: localStorage.getItem('ceremony_userId') || null,
       },
     })
 
-    socketRef.current = socket
+    socketRef.current = s
+    setSocket(s)
 
-    socket.on('connect', () => {
-      console.log('[Socket] Connected:', socket.id)
+    s.on('connect', () => {
+      console.log('[Socket] Connected:', s.id)
       setConnected(true)
     })
 
-    socket.on('disconnect', (reason) => {
+    s.on('disconnect', (reason) => {
       console.log('[Socket] Disconnected:', reason)
       setConnected(false)
     })
 
-    socket.on('connect_error', (err) => {
+    s.on('connect_error', (err) => {
       console.error('[Socket] Connection error:', err.message)
     })
 
     return () => {
-      socket.disconnect()
+      s.disconnect()
+      socketRef.current = null
+      setSocket(null)
     }
   }, [])
 
@@ -53,5 +59,5 @@ export function useSocket() {
     return false
   }, [])
 
-  return { socket: socketRef.current, connected, emit }
+  return { socket, connected, emit }
 }

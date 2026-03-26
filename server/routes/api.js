@@ -78,6 +78,21 @@ router.get('/danmaku/recent', (req, res) => {
   res.json(rows.reverse()); // 按时间正序返回
 });
 
+// GET /api/danmaku/leaderboard — 弹幕排行榜
+router.get('/danmaku/leaderboard', (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const rows = db.prepare(
+    `SELECT u.id, u.nickname, u.face_url, COUNT(d.id) as danmaku_count
+     FROM danmaku d
+     INNER JOIN users u ON d.user_id = u.id
+     WHERE u.nickname IS NOT NULL
+     GROUP BY d.user_id
+     ORDER BY danmaku_count DESC
+     LIMIT ?`
+  ).all(limit);
+  res.json(rows);
+});
+
 // GET /api/system/state — 系统状态
 router.get('/system/state', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM system_state').all();

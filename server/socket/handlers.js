@@ -51,6 +51,16 @@ function setupSocket(io) {
     }, 1000);
   }
 
+  // 定期清理过期的弹幕速率限制条目（防止内存泄漏）
+  const rateLimitCleanup = setInterval(() => {
+    const now = Date.now();
+    for (const [id, entry] of danmakuRateLimit) {
+      if (now - entry.windowStart > 5000) {
+        danmakuRateLimit.delete(id);
+      }
+    }
+  }, 30000);
+
   io.on('connection', (socket) => {
     console.log(`[Socket] connected: ${socket.id}`);
     broadcastUsersCount(io);

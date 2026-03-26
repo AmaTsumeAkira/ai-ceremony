@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 
 const EMOJI_CELEBRATE = ['🎉', '🎊', '✨', '🌟', '💫', '🏆', '🎯', '💎'];
 
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:6588'
+  : `${window.location.protocol}//${window.location.hostname}:6588`;
+
 export default function LuckyDrawOverlay({ socket }) {
   const [active, setActive] = useState(false);
   const [winners, setWinners] = useState([]);
@@ -12,7 +16,7 @@ export default function LuckyDrawOverlay({ socket }) {
 
   // Fetch all users for spinning effect
   useEffect(() => {
-    fetch('/api/faces')
+    fetch(`${API_BASE}/api/faces`)
       .then(r => r.json())
       .then(data => { allUsersRef.current = data; })
       .catch(() => {});
@@ -116,7 +120,7 @@ export default function LuckyDrawOverlay({ socket }) {
             }}>
               {w.face_url ? (
                 <img
-                  src={w.face_url.startsWith('http') ? w.face_url : `${window.location.protocol}//${window.location.hostname}:6588${w.face_url}`}
+                  src={w.face_url.startsWith('http') ? w.face_url : `${API_BASE}${w.face_url}`}
                   alt={w.nickname}
                   style={{
                     width: 80, height: 80, borderRadius: '50%',

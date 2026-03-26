@@ -33,6 +33,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons'
 import { useSocket } from '../hooks/useSocket'
+import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
 import axios from 'axios'
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -103,6 +104,12 @@ export default function Control() {
   const analyserRef = useRef(null)
   const micStreamRef = useRef(null)
   const animFrameRef = useRef(null)
+  const shoutThresholdRef = useRef(shoutThreshold)
+  const energyThresholdRef = useRef(energyThreshold)
+
+  // Keep refs in sync
+  useEffect(() => { shoutThresholdRef.current = shoutThreshold }, [shoutThreshold])
+  useEffect(() => { energyThresholdRef.current = energyThreshold }, [energyThreshold])
 
   // File input ref for background upload
   const bgFileRef = useRef(null)
@@ -242,10 +249,10 @@ export default function Control() {
     }
     setVolumeBars(bars)
     if (socket?.connected) {
-      socket.emit('control:voice-level', { level: normalized, threshold: shoutThreshold, energyThreshold })
+      socket.emit('control:voice-level', { level: normalized, threshold: shoutThresholdRef.current, energyThreshold: energyThresholdRef.current })
     }
     animFrameRef.current = requestAnimationFrame(readVolume)
-  }, [socket, shoutThreshold, energyThreshold])
+  }, [socket])
 
   const toggleMic = async () => {
     if (micEnabled) {
@@ -355,14 +362,37 @@ export default function Control() {
     setTimeout(() => setDrawSpinning(false), 5000)
   }
 
-  const handleExportUsers = () => {
-    window.open(`${API_BASE}/api/export/users`, '_blank')
-    antMessage.success('用户数据已导出')
+  const downloadCSV = async (url, filename) => {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('ceremony_password')}` },
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+      return true
+    } catch (err) {
+      antMessage.error('导出失败: ' + err.message)
+      return false
+    }
   }
 
-  const handleExportDanmaku = () => {
-    window.open(`${API_BASE}/api/export/danmaku`, '_blank')
-    antMessage.success('弹幕数据已导出')
+  const handleExportUsers = async () => {
+    if (await downloadCSV(`${API_BASE}/api/export/users`, `users_export_${Date.now()}.csv`)) {
+      antMessage.success('用户数据已导出')
+    }
+  }
+
+  const handleExportDanmaku = async () => {
+    if (await downloadCSV(`${API_BASE}/api/export/danmaku`, `danmaku_export_${Date.now()}.csv`)) {
+      antMessage.success('弹幕数据已导出')
+    }
   }
 
   const getModeColor = (mode) => {
@@ -627,6 +657,9 @@ export default function Control() {
             <Card title="🔨 重建进度" style={styles.card} size="small">
               <Progress percent={rebuildProgress} status={rebuildProgress === 100 ? 'success' : 'active'} strokeColor={{ '0%': '#40a9ff', '50%': '#722ed1', '100%': '#eb2f96' }} />
             </Card>
+
+            {/* Danmaku Leaderboard */}
+            <DanmakuLeaderboard socket={socket} />
 
             {/* Volume Visualizer */}
             <Card title="🎙️ 实时音量" style={styles.card} size="small">

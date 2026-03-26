@@ -89,7 +89,7 @@ export default function Mobile() {
     }
   }
 
-  // Auto-register if previously registered (only once)
+  // Auto-register if previously registered (only once per connection)
   useEffect(() => {
     const saved = localStorage.getItem('ai_ceremony_nickname')
     const savedUserId = localStorage.getItem('ceremony_userId')
@@ -106,6 +106,10 @@ export default function Mobile() {
         setRegistered(true)
         hasJoinedRef.current = true
       }
+    }
+    // Reset flag on disconnect to allow re-join on reconnect
+    if (!connected) {
+      hasJoinedRef.current = false
     }
   }, [connected, emit])
 
@@ -137,6 +141,8 @@ export default function Mobile() {
   const getModeLabel = (mode) => {
     const labels = {
       idle: '待命中',
+      speaker: '🎤 讲者模式',
+      climax: '🔥 高潮模式',
       shatter: '💥 破碎进行中',
       rebuild: '🔨 重建进行中',
       danmaku: '💬 弹幕模式',
@@ -148,6 +154,8 @@ export default function Mobile() {
   const getModeColor = (mode) => {
     const colors = {
       idle: '#666',
+      speaker: '#722ed1',
+      climax: '#f5222d',
       shatter: '#f5222d',
       rebuild: '#52c41a',
       danmaku: '#40a9ff',
