@@ -55,6 +55,7 @@ const Help = () => {
             <li style={{ marginBottom: '10px' }}><strong>马赛克墙</strong> — 点击「马赛克预览」查看头像拼成的照片墙</li>
             <li style={{ marginBottom: '10px' }}><strong>启动仪式</strong> — 控制台点击「启跃·启动仪式」或启动倒计时，倒计时结束自动触发粒子碎裂</li>
             <li style={{ marginBottom: '10px' }}><strong>合影留念</strong> — 点击「重建」恢复粒子文字，点击「合影留念」结束</li>
+            <li style={{ marginBottom: '10px' }}><strong>抽奖环节（可选）</strong> — 控制台点击「开始抽奖」，从注册用户中随机抽取幸运观众，大屏展示中奖名单</li>
           </ol>
         </div>
       </section>
@@ -79,6 +80,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>导出弹幕</td><td>导出所有弹幕记录为 CSV 文件（含内容、颜色、时间）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>输入公告内容并发送，大屏全屏展示公告消息（可设置显示时长 3-15 秒，可随时取消）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>从已注册用户中随机抽取 1-10 位幸运观众，大屏全屏展示中奖名单（带动画效果）</td></tr>
             </tbody>
           </table>
         </div>
@@ -117,6 +119,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>控制台启动后大屏全屏显示倒计时数字</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克</td><td>观众头像/Emoji 拼成圆形马赛克墙</td></tr>
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>控制台发送公告后大屏全屏展示，自动消失</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>控制台启动抽奖后大屏全屏展示，先滚动随机名字再揭晓中奖名单</td></tr>
             </tbody>
           </table>
         </div>

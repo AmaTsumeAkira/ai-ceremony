@@ -6,6 +6,7 @@ import MosaicCanvas from '../components/MosaicCanvas';
 import EmojiFloat from '../components/EmojiFloat';
 import CountdownOverlay from '../components/CountdownOverlay';
 import AnnouncementOverlay from '../components/AnnouncementOverlay';
+import LuckyDrawOverlay from '../components/LuckyDrawOverlay';
 import axios from 'axios';
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -198,6 +199,9 @@ export default function Display() {
 
       {/* Announcement Overlay */}
       <AnnouncementOverlay socket={socket} />
+
+      {/* Lucky Draw Overlay */}
+      <LuckyDrawOverlay socket={socket} />
 
       <style>{`
         @keyframes fadeInScale {

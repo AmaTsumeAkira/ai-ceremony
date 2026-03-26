@@ -86,6 +86,10 @@ export default function Control() {
   // Mosaic preview state
   const [mosaicPreview, setMosaicPreview] = useState(false)
 
+  // Lucky draw state
+  const [drawCount, setDrawCount] = useState(1)
+  const [drawSpinning, setDrawSpinning] = useState(false)
+
   // Announcement state
   const [announcementText, setAnnouncementText] = useState('')
   const [announcementDuration, setAnnouncementDuration] = useState(5)
@@ -344,6 +348,13 @@ export default function Control() {
     antMessage.warning('📢 公告已取消')
   }
 
+  const handleLuckyDraw = () => {
+    emit('control:lucky-draw', { count: drawCount })
+    setDrawSpinning(true)
+    antMessage.info(`🎲 抽奖已启动（${drawCount} 位幸运儿）`)
+    setTimeout(() => setDrawSpinning(false), 5000)
+  }
+
   const handleExportUsers = () => {
     window.open(`${API_BASE}/api/export/users`, '_blank')
     antMessage.success('用户数据已导出')
@@ -372,6 +383,7 @@ export default function Control() {
       agenda: { icon: '📋', text: `阶段: ${data.label || ''}`, color: '#13c2c2' },
       countdown: { icon: '⏱️', text: `${data.seconds || 0}s 倒计时开始`, color: '#40a9ff' },
       announcement: { icon: '📢', text: `公告: ${data.text || ''}`, color: '#eb2f96' },
+      lucky_draw: { icon: '🎲', text: `抽奖: ${(data.winners || []).join(', ')} 中奖`, color: '#ffd700' },
     }
     const info = labels[log.event_type] || { icon: '📌', text: log.event_type, color: '#666' }
     return { ...info, time }
@@ -771,6 +783,42 @@ export default function Control() {
                     </Button>
                   </Col>
                 </Row>
+              </Space>
+            </Card>
+
+            {/* Lucky Draw */}
+            <Card title="🎲 幸运抽奖" style={styles.card} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: 0 }}>
+                  从已注册用户中随机抽取幸运观众
+                </p>
+                <div style={styles.sliderLabel}>
+                  <span>抽奖人数</span>
+                  <Tag color="gold">{drawCount} 人</Tag>
+                </div>
+                <Slider
+                  min={1}
+                  max={10}
+                  value={drawCount}
+                  onChange={setDrawCount}
+                  trackStyle={{ background: 'linear-gradient(90deg, #ffd700, #ff8c00)' }}
+                />
+                <Button
+                  type="primary"
+                  onClick={handleLuckyDraw}
+                  disabled={drawSpinning}
+                  block
+                  size="large"
+                  style={{
+                    ...styles.actionBtn,
+                    background: 'linear-gradient(135deg, #ffd700, #ff8c00)',
+                    border: 'none',
+                    color: '#000',
+                    fontWeight: 800,
+                  }}
+                >
+                  {drawSpinning ? '🎲 抽奖进行中...' : '🎲 开始抽奖'}
+                </Button>
               </Space>
             </Card>
 

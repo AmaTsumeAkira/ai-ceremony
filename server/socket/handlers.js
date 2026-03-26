@@ -160,8 +160,27 @@ function setupSocket(io) {
       }
     });
 
+// 弹幕速率限制：每个 socket 每秒最多 3 条
+const danmakuRateLimit = new Map(); // socketId -> { count, windowStart }
+const DANMAKU_MAX_PER_SEC = 3;
+
+function checkDanmakuRate(socketId) {
+  const now = Date.now();
+  const entry = danmakuRateLimit.get(socketId);
+  if (!entry || now - entry.windowStart > 1000) {
+    danmakuRateLimit.set(socketId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= DANMAKU_MAX_PER_SEC) return false;
+  entry.count++;
+  return true;
+}
+
     socket.on('danmaku:send', (data) => {
       try {
+        if (!checkDanmakuRate(socket.id)) {
+          return socket.emit('error', { message: '弹幕发送太快了，请稍候' });
+        }
         const { content, color } = data;
         if (!content || !content.trim()) {
           return socket.emit('error', { message: '弹幕内容不能为空' });
@@ -412,9 +431,26 @@ function setupSocket(io) {
       console.log('[Control] announcement cancelled');
     }));
 
+    // ========== 幸运抽奖 ==========
+    socket.on('control:lucky-draw', requireAuth((data) => {
+      const { count = 1 } = data;
+      const drawCount = Math.max(1, Math.min(Number(count) || 1, 20));
+      const users = db.prepare(
+        'SELECT id, nickname, face_url FROM users WHERE nickname IS NOT NULL ORDER BY RANDOM() LIMIT ?'
+      ).all(drawCount);
+      if (users.length === 0) {
+        socket.emit('control:lucky-draw-result', { winners: [], error: '暂无注册用户' });
+        return;
+      }
+      io.emit('display:lucky-draw', { winners: users });
+      logEvent('lucky_draw', { winners: users.map(u => u.nickname), count: users.length });
+      console.log(`[LuckyDraw] winners: ${users.map(u => u.nickname).join(', ')}`);
+    }));
+
     // ========== 断开连接 ==========
     socket.on('disconnect', () => {
       authenticatedSockets.delete(socket.id);
+      danmakuRateLimit.delete(socket.id);
       if (socket.userId) {
         db.prepare('UPDATE users SET socket_id = NULL WHERE id = ?').run(socket.userId);
       }

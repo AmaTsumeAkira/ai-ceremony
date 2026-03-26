@@ -109,7 +109,6 @@ export default function FaceUploader({ socket, emit, nickname, userId, avatarUrl
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="user"
         onChange={handleFileSelect}
         style={{ display: 'none' }}
       />
