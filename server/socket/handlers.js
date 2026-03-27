@@ -11,6 +11,38 @@ let threshold = (() => {
 let decayInterval = null;
 let countdownToken = null; // 倒计时完成时 display 端需提供的令牌
 
+// ========== 弹幕速率限制 ==========
+const danmakuRateLimit = new Map(); // socketId -> { count, windowStart }
+const DANMAKU_MAX_PER_SEC = 3;
+
+function checkDanmakuRate(socketId) {
+  const now = Date.now();
+  const entry = danmakuRateLimit.get(socketId);
+  if (!entry || now - entry.windowStart > 1000) {
+    danmakuRateLimit.set(socketId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= DANMAKU_MAX_PER_SEC) return false;
+  entry.count++;
+  return true;
+}
+
+// ========== Emoji 速率限制 ==========
+const emojiRateLimit = new Map(); // socketId -> { count, windowStart }
+const EMOJI_MAX_PER_SEC = 3;
+
+function checkEmojiRate(socketId) {
+  const now = Date.now();
+  const entry = emojiRateLimit.get(socketId);
+  if (!entry || now - entry.windowStart > 1000) {
+    emojiRateLimit.set(socketId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= EMOJI_MAX_PER_SEC) return false;
+  entry.count++;
+  return true;
+}
+
 // ========== 活动日志 ==========
 function logEvent(eventType, eventData) {
   try {
@@ -32,8 +64,8 @@ function broadcastState(io) {
   const rows = db.prepare('SELECT key, value FROM system_state').all();
   const state = {};
   for (const row of rows) state[row.key] = row.value;
-  state.energy = String(Math.round(energy));
-  state.threshold = String(threshold);
+  state.energy = String(Math.round(isNaN(energy) ? 0 : energy));
+  state.threshold = String(isNaN(threshold) ? 1000 : threshold);
   io.emit('control:state', state);
 }
 
@@ -253,22 +285,6 @@ function setupSocket(io) {
       }
     });
 
-// 弹幕速率限制：每个 socket 每秒最多 3 条
-const danmakuRateLimit = new Map(); // socketId -> { count, windowStart }
-const DANMAKU_MAX_PER_SEC = 3;
-
-function checkDanmakuRate(socketId) {
-  const now = Date.now();
-  const entry = danmakuRateLimit.get(socketId);
-  if (!entry || now - entry.windowStart > 1000) {
-    danmakuRateLimit.set(socketId, { count: 1, windowStart: now });
-    return true;
-  }
-  if (entry.count >= DANMAKU_MAX_PER_SEC) return false;
-  entry.count++;
-  return true;
-}
-
     socket.on('danmaku:send', (data) => {
       try {
         if (!checkDanmakuRate(socket.id)) {
@@ -430,22 +446,6 @@ function checkDanmakuRate(socketId) {
     }));
 
     // ========== Emoji 飘屏 ==========
-    // Emoji 速率限制：每个 socket 每秒最多 3 个
-    const emojiRateLimit = new Map(); // socketId -> { count, windowStart }
-    const EMOJI_MAX_PER_SEC = 3;
-
-    function checkEmojiRate(socketId) {
-      const now = Date.now();
-      const entry = emojiRateLimit.get(socketId);
-      if (!entry || now - entry.windowStart > 1000) {
-        emojiRateLimit.set(socketId, { count: 1, windowStart: now });
-        return true;
-      }
-      if (entry.count >= EMOJI_MAX_PER_SEC) return false;
-      entry.count++;
-      return true;
-    }
-
     socket.on('emoji:send', (data) => {
       if (!checkEmojiRate(socket.id)) {
         return socket.emit('error', { message: 'Emoji 发送太快了，请稍候' });
