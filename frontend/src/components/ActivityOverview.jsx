@@ -34,11 +34,17 @@ export default function ActivityOverview({ socket }) {
   const [hourlyData, setHourlyData] = useState([])
   const [summary, setSummary] = useState({})
   const [totalEvents, setTotalEvents] = useState(0)
+  const [authError, setAuthError] = useState(false)
 
   const loadData = async () => {
     try {
       const pwd = sessionStorage.getItem('ceremony_password')
-      const headers = pwd ? { Authorization: `Bearer ${pwd}` } : {}
+      if (!pwd) {
+        setAuthError(true)
+        return
+      }
+      setAuthError(false)
+      const headers = { Authorization: `Bearer ${pwd}` }
       const res = await axios.get(`${API_BASE}/api/logs?limit=500`, { headers })
       const logs = res.data || []
 
@@ -65,7 +71,11 @@ export default function ActivityOverview({ socket }) {
       setHourlyData(data)
       setSummary(summaryMap)
       setTotalEvents(total)
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      if (e.response?.status === 401) {
+        setAuthError(true)
+      }
+    }
   }
 
   useEffect(() => { loadData() }, [])
@@ -198,7 +208,12 @@ export default function ActivityOverview({ socket }) {
         </div>
       )}
 
-      {hourlyData.length === 0 && (
+      {authError && (
+        <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0', fontSize: 13 }}>
+          请先完成认证以查看活动数据
+        </div>
+      )}
+      {!authError && hourlyData.length === 0 && (
         <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0', fontSize: 13 }}>
           暂无活动数据
         </div>

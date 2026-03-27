@@ -38,6 +38,7 @@ import EmojiLeaderboard from '../components/EmojiLeaderboard'
 import ActiveUsersLeaderboard from '../components/ActiveUsersLeaderboard'
 import CheckinStats from '../components/CheckinStats'
 import ActivityOverview from '../components/ActivityOverview'
+import JoinQRCode from '../components/JoinQRCode'
 import axios from 'axios'
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -752,6 +753,9 @@ export default function Control() {
 
           {/* Right Panel */}
           <div style={styles.rightPanel}>
+            {/* QR Code */}
+            <JoinQRCode socket={socket} />
+
             {/* Stats */}
             <Card title="📊 实时状态" style={styles.card} size="small">
               <Row gutter={[16, 16]}>
