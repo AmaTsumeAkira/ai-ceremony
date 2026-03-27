@@ -90,6 +90,21 @@ db.exec(`
   );
 `);
 
+// 问答表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    nickname TEXT NOT NULL,
+    content TEXT NOT NULL,
+    anonymous INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending',
+    highlighted INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
 // 初始化默认系统状态
 const defaultStates = {
   mode: 'idle',

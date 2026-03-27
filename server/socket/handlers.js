@@ -116,6 +116,11 @@ function setupSocket(io) {
         blessingRateLimit.delete(id);
       }
     }
+    for (const [id, entry] of qnaRateLimit) {
+      if (now - entry.windowStart > 10000) {
+        qnaRateLimit.delete(id);
+      }
+    }
   }, 30000);
 
   // 清理 interval 防止进程退出时悬挂
@@ -165,17 +170,24 @@ function setupSocket(io) {
         
         // 断线重连：尝试恢复已有身份
         if (reconnectUserId) {
-          const existing = db.prepare('SELECT id, nickname FROM users WHERE id = ?').get(reconnectUserId);
+          const existing = db.prepare('SELECT id, nickname, socket_id FROM users WHERE id = ?').get(reconnectUserId);
           if (existing) {
-            db.prepare('UPDATE users SET socket_id = ? WHERE id = ?').run(socket.id, existing.id);
-            socket.userId = existing.id;
-            socket.userNickname = existing.nickname;
-            socket.userType = 'user';
-            socket.join('users');
-            socket.emit('user:reconnected', { id: existing.id, nickname: existing.nickname });
-            broadcastUsersCount(io);
-            console.log(`[User] reconnected: ${existing.nickname} (id=${existing.id})`);
-            return;
+            // 安全检查：仅当用户当前未连接（socket_id 为 NULL）时允许重连
+            // 防止恶意用户通过猜 userId 冒充他人
+            if (existing.socket_id && io.sockets.sockets.has(existing.socket_id)) {
+              console.log(`[Security] reconnect rejected: user ${existing.id} already connected on socket ${existing.socket_id}`);
+              // 继续走正常注册流程
+            } else {
+              db.prepare('UPDATE users SET socket_id = ? WHERE id = ?').run(socket.id, existing.id);
+              socket.userId = existing.id;
+              socket.userNickname = existing.nickname;
+              socket.userType = 'user';
+              socket.join('users');
+              socket.emit('user:reconnected', { id: existing.id, nickname: existing.nickname });
+              broadcastUsersCount(io);
+              console.log(`[User] reconnected: ${existing.nickname} (id=${existing.id})`);
+              return;
+            }
           }
           // reconnectUserId 无效，忽略该参数继续正常注册流程
           console.log(`[User] reconnectUserId ${reconnectUserId} not found, registering new user`);
@@ -281,6 +293,16 @@ function setupSocket(io) {
         // 限制图片大小 5MB
         if (buffer.length > 5 * 1024 * 1024) {
           return socket.emit('error', { message: '图片不能超过 5MB' });
+        }
+        // 验证文件魔数（magic bytes）防止 MIME 欺骗
+        const magicBytes = buffer.subarray(0, 4);
+        const isValidImage =
+          (ext === 'jpg' && magicBytes[0] === 0xFF && magicBytes[1] === 0xD8) ||
+          (ext === 'png' && magicBytes[0] === 0x89 && magicBytes[1] === 0x50 && magicBytes[2] === 0x4E && magicBytes[3] === 0x47) ||
+          (ext === 'gif' && magicBytes[0] === 0x47 && magicBytes[1] === 0x49 && magicBytes[2] === 0x46) ||
+          (ext === 'webp' && buffer.subarray(8, 12).toString() === 'WEBP');
+        if (!isValidImage) {
+          return socket.emit('error', { message: '文件内容不是有效的图片格式' });
         }
         const fname = `face_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const filepath = path.join(__dirname, '..', 'uploads', fname);
@@ -772,8 +794,9 @@ function setupSocket(io) {
       const rows = db.prepare('SELECT option_index, COUNT(*) as cnt FROM poll_votes WHERE poll_id = ? GROUP BY option_index').all(pollId);
       let totalVotes = 0;
       for (const row of rows) {
-        if (row.option_index >= 0 && row.option_index < options.length) {
-          votes[row.option_index] = row.cnt;
+        const idx = Number(row.option_index);
+        if (Number.isInteger(idx) && idx >= 0 && idx < options.length) {
+          votes[idx] = row.cnt;
           totalVotes += row.cnt;
         }
       }
@@ -819,6 +842,153 @@ function setupSocket(io) {
         socket.emit('poll:active', null);
       }
     });
+
+    // ========== 问答（Q&A）==========
+    const qnaRateLimit = new Map();
+    const QNA_MAX_PER_10SEC = 2;
+
+    function checkQnaRate(socketId) {
+      const now = Date.now();
+      const entry = qnaRateLimit.get(socketId);
+      if (!entry || now - entry.windowStart > 10000) {
+        qnaRateLimit.set(socketId, { count: 1, windowStart: now });
+        return true;
+      }
+      if (entry.count >= QNA_MAX_PER_10SEC) return false;
+      entry.count++;
+      return true;
+    }
+
+    // 用户提交问题
+    socket.on('question:submit', (data) => {
+      try {
+        if (!socket.userId) {
+          return socket.emit('error', { message: '请先注册' });
+        }
+        if (!checkQnaRate(socket.id)) {
+          return socket.emit('error', { message: '提问太频繁，请稍候' });
+        }
+        const { content, anonymous } = data;
+        if (!content || !content.trim()) {
+          return socket.emit('error', { message: '问题内容不能为空' });
+        }
+        const text = content.trim();
+        if (text.length > 200) {
+          return socket.emit('error', { message: '问题内容不能超过 200 个字符' });
+        }
+        const isAnonymous = anonymous ? 1 : 0;
+
+        const stmt = db.prepare(
+          'INSERT INTO questions (user_id, nickname, content, anonymous) VALUES (?, ?, ?, ?)'
+        );
+        const result = stmt.run(socket.userId, socket.userNickname, text, isAnonymous);
+
+        socket.emit('question:submitted', { ok: true, id: result.lastInsertRowid });
+        logEvent('question_submit', { nickname: socket.userNickname, content: text, anonymous: !!isAnonymous });
+        console.log(`[Q&A] ${socket.userNickname} submitted: ${text.substring(0, 50)}`);
+      } catch (err) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // 获取最近问题列表（用户端加入时请求）
+    socket.on('question:get-recent', () => {
+      try {
+        const rows = db.prepare(
+          `SELECT id, nickname, content, anonymous, status, highlighted, created_at
+           FROM questions WHERE status IN ('pending', 'approved')
+           ORDER BY created_at DESC LIMIT 30`
+        ).all();
+        socket.emit('question:recent', rows.reverse());
+      } catch {}
+    });
+
+    // 控制端获取所有问题（含已回答）
+    socket.on('control:get-questions', requireAuth(() => {
+      try {
+        const rows = db.prepare(
+          `SELECT id, user_id, nickname, content, anonymous, status, highlighted, created_at
+           FROM questions ORDER BY
+             CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'answered' THEN 2 ELSE 3 END,
+             highlighted DESC, created_at ASC
+           LIMIT 100`
+        ).all();
+        socket.emit('control:questions-list', rows);
+      } catch {}
+    }));
+
+    // 控制端审核通过问题
+    socket.on('control:approve-question', requireAuth((data) => {
+      const { questionId } = data;
+      if (!questionId) return;
+      db.prepare("UPDATE questions SET status = 'approved' WHERE id = ?").run(questionId);
+      const q = db.prepare('SELECT * FROM questions WHERE id = ?').get(questionId);
+      if (q) {
+        io.emit('question:approved', {
+          id: q.id,
+          nickname: q.anonymous ? '匿名观众' : q.nickname,
+          content: q.content,
+          highlighted: !!q.highlighted,
+          created_at: q.created_at,
+        });
+        logEvent('question_approved', { questionId, content: q.content });
+        console.log(`[Q&A] approved: ${q.content.substring(0, 50)}`);
+      }
+    }));
+
+    // 控制端标记问题为已回答
+    socket.on('control:answer-question', requireAuth((data) => {
+      const { questionId } = data;
+      if (!questionId) return;
+      db.prepare("UPDATE questions SET status = 'answered' WHERE id = ?").run(questionId);
+      io.emit('question:answered', { id: questionId });
+      logEvent('question_answered', { questionId });
+      console.log(`[Q&A] answered: id=${questionId}`);
+    }));
+
+    // 控制端精选/高亮问题
+    socket.on('control:highlight-question', requireAuth((data) => {
+      const { questionId } = data;
+      if (!questionId) return;
+      db.prepare('UPDATE questions SET highlighted = 0 WHERE highlighted = 1').run();
+      db.prepare('UPDATE questions SET highlighted = 1 WHERE id = ?').run(questionId);
+      const q = db.prepare('SELECT * FROM questions WHERE id = ?').get(questionId);
+      if (q) {
+        io.emit('question:highlighted', {
+          id: q.id,
+          nickname: q.anonymous ? '匿名观众' : q.nickname,
+          content: q.content,
+          created_at: q.created_at,
+        });
+        logEvent('question_highlighted', { questionId, content: q.content });
+        console.log(`[Q&A] highlighted: ${q.content.substring(0, 50)}`);
+      }
+    }));
+
+    // 控制端取消精选
+    socket.on('control:unhighlight-question', requireAuth(() => {
+      db.prepare('UPDATE questions SET highlighted = 0 WHERE highlighted = 1').run();
+      io.emit('question:unhighlighted');
+      console.log('[Q&A] unhighlighted');
+    }));
+
+    // 控制端删除问题
+    socket.on('control:delete-question', requireAuth((data) => {
+      const { questionId } = data;
+      if (!questionId) return;
+      db.prepare('DELETE FROM questions WHERE id = ?').run(questionId);
+      io.emit('question:deleted', { id: questionId });
+      console.log(`[Q&A] deleted: id=${questionId}`);
+    }));
+
+    // 控制端清空所有问答
+    socket.on('control:clear-questions', requireAuth(() => {
+      db.prepare('DELETE FROM questions').run();
+      io.emit('question:cleared');
+      broadcastState(io);
+      logEvent('question_clear', { action: 'cleared' });
+      console.log('[Q&A] all questions cleared');
+    }));
 
     // ========== 断开连接 ==========
     socket.on('disconnect', () => {

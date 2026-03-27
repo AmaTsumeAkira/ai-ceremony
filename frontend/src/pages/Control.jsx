@@ -32,6 +32,10 @@ import {
   LockOutlined,
   DownloadOutlined,
   StarOutlined,
+  QuestionCircleOutlined,
+  CheckOutlined,
+  EyeOutlined,
+  DeleteColumnOutlined,
 } from '@ant-design/icons'
 import { useSocket } from '../hooks/useSocket'
 import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
@@ -116,6 +120,10 @@ export default function Control() {
   const [pollOptions, setPollOptions] = useState(['', ''])
   const [activePoll, setActivePoll] = useState(null)
   const [pollResults, setPollResults] = useState(null)
+
+  // Q&A state
+  const [questions, setQuestions] = useState([])
+  const [highlightedQ, setHighlightedQ] = useState(null)
 
   // Leaderboard data for poster generation
   const [leaderboardData, setLeaderboardData] = useState([])
@@ -231,6 +239,32 @@ export default function Control() {
     socket.on('poll:closed', handlePollClosed)
     socket.on('poll:active', handlePollActive)
 
+    // Q&A listeners
+    const handleQuestionsList = (data) => { setQuestions(data || []); }
+    const handleQuestionApproved = (data) => {
+      setQuestions(prev => prev.map(q => q.id === data.id ? { ...q, status: 'approved' } : q));
+    }
+    const handleQuestionAnswered = (data) => {
+      setQuestions(prev => prev.map(q => q.id === data.id ? { ...q, status: 'answered' } : q));
+    }
+    const handleQuestionHighlighted = (data) => {
+      setHighlightedQ(data);
+      setQuestions(prev => prev.map(q => ({ ...q, highlighted: q.id === data.id })));
+    }
+    const handleQuestionUnhighlighted = () => { setHighlightedQ(null); }
+    const handleQuestionDeleted = (data) => {
+      setQuestions(prev => prev.filter(q => q.id !== data.id));
+    }
+    const handleQuestionCleared = () => { setQuestions([]); setHighlightedQ(null); }
+
+    socket.on('control:questions-list', handleQuestionsList)
+    socket.on('question:approved', handleQuestionApproved)
+    socket.on('question:answered', handleQuestionAnswered)
+    socket.on('question:highlighted', handleQuestionHighlighted)
+    socket.on('question:unhighlighted', handleQuestionUnhighlighted)
+    socket.on('question:deleted', handleQuestionDeleted)
+    socket.on('question:cleared', handleQuestionCleared)
+
     // Danmaku listeners for pin feature
     const handleDanmakuNew = (data) => {
       setDanmakuList(prev => {
@@ -256,6 +290,13 @@ export default function Control() {
       socket.off('poll:results', handlePollResults)
       socket.off('poll:closed', handlePollClosed)
       socket.off('poll:active', handlePollActive)
+      socket.off('control:questions-list', handleQuestionsList)
+      socket.off('question:approved', handleQuestionApproved)
+      socket.off('question:answered', handleQuestionAnswered)
+      socket.off('question:highlighted', handleQuestionHighlighted)
+      socket.off('question:unhighlighted', handleQuestionUnhighlighted)
+      socket.off('question:deleted', handleQuestionDeleted)
+      socket.off('question:cleared', handleQuestionCleared)
       socket.off('danmaku:new', handleDanmakuNew)
       socket.off('danmaku:cleared', handleDanmakuCleared)
     }
@@ -303,6 +344,10 @@ export default function Control() {
     loadLogs()
     loadLeaderboard()
     loadRecentDanmaku()
+    // Load Q&A list when authenticated
+    if (socket) {
+      setTimeout(() => socket.emit('control:get-questions'), 500)
+    }
   }, [])
 
   // ========== Mic ==========
@@ -489,6 +534,40 @@ export default function Control() {
     if (await downloadCSV(`${API_BASE}/api/export/checkin`, `checkin_export_${Date.now()}.csv`)) {
       antMessage.success('签到记录已导出')
     }
+  }
+
+  const handleExportQA = async () => {
+    if (!authenticated) { antMessage.warning('请先完成认证'); return }
+    if (await downloadCSV(`${API_BASE}/api/export/qa`, `qa_export_${Date.now()}.csv`)) {
+      antMessage.success('问答数据已导出')
+    }
+  }
+
+  // Q&A handlers
+  const handleApproveQuestion = (id) => {
+    emit('control:approve-question', { questionId: id })
+    antMessage.success('✅ 问题已通过审核')
+  }
+  const handleAnswerQuestion = (id) => {
+    emit('control:answer-question', { questionId: id })
+    antMessage.success('💬 问题已标记为已回答')
+  }
+  const handleHighlightQuestion = (id) => {
+    emit('control:highlight-question', { questionId: id })
+    antMessage.success('⭐ 问题已精选到大屏')
+  }
+  const handleUnhighlightQuestion = () => {
+    emit('control:unhighlight-question')
+    setHighlightedQ(null)
+    antMessage.info('取消精选')
+  }
+  const handleDeleteQuestion = (id) => {
+    emit('control:delete-question', { questionId: id })
+    antMessage.success('🗑️ 问题已删除')
+  }
+  const handleClearQuestions = () => {
+    emit('control:clear-questions')
+    antMessage.info('🧹 问答已清空')
   }
 
   const handlePinDanmaku = (danmaku) => {

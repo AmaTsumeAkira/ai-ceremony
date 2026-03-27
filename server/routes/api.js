@@ -367,6 +367,24 @@ router.get('/export/checkin', requireExportAuth, (req, res) => {
   res.send(csv);
 });
 
+// GET /api/export/qa — 导出问答数据为 CSV
+router.get('/export/qa', requireExportAuth, (req, res) => {
+  const rows = db.prepare(
+    `SELECT q.id, q.nickname, q.content, q.anonymous, q.status, q.highlighted, q.created_at
+     FROM questions q ORDER BY q.created_at ASC`
+  ).all();
+
+  let csv = '\uFEFFID,昵称,内容,是否匿名,状态,是否精选,提交时间\n';
+  for (const row of rows) {
+    const statusMap = { pending: '待审核', approved: '已通过', answered: '已回答' };
+    csv += `${row.id},"${(row.anonymous ? '匿名' : (row.nickname || '')).replace(/"/g, '""')}","${(row.content || '').replace(/"/g, '""')}","${row.anonymous ? '是' : '否'}","${statusMap[row.status] || row.status}","${row.highlighted ? '是' : '否'}","${row.created_at}"\n`;
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=qa_export_${Date.now()}.csv`);
+  res.send(csv);
+});
+
 // multer 错误处理中间件
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
