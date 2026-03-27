@@ -79,6 +79,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>导出用户</td><td>导出所有注册用户数据为 CSV 文件（含昵称、头像、弹幕数）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>导出弹幕</td><td>导出所有弹幕记录为 CSV 文件（含内容、颜色、时间）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>导出签到记录</td><td>批量导出签到记录为 CSV 文件（含用户ID、昵称、是否上传头像、注册时间、弹幕数、Emoji数）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>大会数据报告</td><td>实时展示综合数据仪表盘（注册用户数、在线人数、弹幕数、Emoji数、头像数、参与率），含弹幕活跃 Top 5 和 Emoji 发送 Top 5 可视化，支持一键导出完整 CSV 报告（含摘要、用户明细、签到排行榜、Emoji 统计四个板块）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕排行榜</td><td>实时显示发送弹幕最多的用户 Top 10，含头像和弹幕数量</td></tr>
               <tr style={trStyle}><td style={tdLabel}>Emoji 反应榜</td><td>实时统计每种 Emoji 的发送次数和占比，前十名可视化展示，Socket 推送实时更新</td></tr>
               <tr style={trStyle}><td style={tdLabel}>签到统计</td><td>实时统计注册用户数、头像上传率、弹幕总数、Emoji 总数，含参与度分布条形图和最近加入用户列表</td></tr>

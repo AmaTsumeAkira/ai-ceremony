@@ -48,7 +48,14 @@ export default function LuckyDrawOverlay({ socket }) {
       const maxSpins = 30;
       const allNicknames = allUsersRef.current.map(u => u.nickname).filter(Boolean);
 
-      if (spinRef.current) clearInterval(spinRef.current);
+      if (spinRef.current) clearTimeout(spinRef.current);
+
+      // If no users for spinning, skip straight to reveal
+      if (allNicknames.length === 0) {
+        setPhase('reveal');
+        setTimeout(() => setPhase('done'), 100);
+        return;
+      }
 
       // Use recursive setTimeout for dynamically increasing delay
       const doSpin = () => {
@@ -60,10 +67,8 @@ export default function LuckyDrawOverlay({ socket }) {
           return;
         }
         // Show random name during spin
-        if (allNicknames.length > 0) {
-          const randName = allNicknames[Math.floor(Math.random() * allNicknames.length)];
-          setDisplayNickname(randName);
-        }
+        const randName = allNicknames[Math.floor(Math.random() * allNicknames.length)];
+        setDisplayNickname(randName);
         // Gradually slow down: 80ms → ~480ms
         const delay = 80 + spinCount * 15;
         spinRef.current = setTimeout(doSpin, delay);

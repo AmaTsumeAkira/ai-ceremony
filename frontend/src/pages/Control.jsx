@@ -41,6 +41,7 @@ import CheckinLeaderboard from '../components/CheckinLeaderboard'
 import ActivityOverview from '../components/ActivityOverview'
 import LeaderboardPoster from '../components/LeaderboardPoster'
 import JoinQRCode from '../components/JoinQRCode'
+import EventDashboard from '../components/EventDashboard'
 import axios from 'axios'
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -813,6 +814,9 @@ export default function Control() {
 
             {/* Check-in Stats */}
             <CheckinStats socket={socket} />
+
+            {/* Event Dashboard */}
+            <EventDashboard socket={socket} />
 
             {/* Check-in Leaderboard */}
             <CheckinLeaderboard socket={socket} />
