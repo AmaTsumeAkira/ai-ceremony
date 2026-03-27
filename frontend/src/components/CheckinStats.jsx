@@ -46,7 +46,8 @@ export default function CheckinStats({ socket }) {
 
       const emojiData = emojiRes.data || {}
       const totalEmoji = emojiData.total || 0
-      const emojiUsers = (emojiData.stats || []).length > 0 ? 1 : 0
+      // 统计实际发送过 emoji 的用户数（从 API 返回的 stats 无法直接获取，用总数估算）
+      const emojiUsers = totalEmoji > 0 ? Math.min(totalUsers, (emojiData.stats || []).reduce((s, e) => s + (e.count > 0 ? 1 : 0), 0)) : 0
 
       // 最近注册的用户（按时间倒序取最新5个）
       const sortedUsers = [...users].sort((a, b) =>

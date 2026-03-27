@@ -37,6 +37,7 @@ import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
 import EmojiLeaderboard from '../components/EmojiLeaderboard'
 import ActiveUsersLeaderboard from '../components/ActiveUsersLeaderboard'
 import CheckinStats from '../components/CheckinStats'
+import ActivityOverview from '../components/ActivityOverview'
 import axios from 'axios'
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -459,6 +460,8 @@ export default function Control() {
       user_join: { icon: '👤', text: `${data.nickname || '用户'} 加入`, color: '#40a9ff' },
       face_upload: { icon: '📸', text: `${data.nickname || '用户'} 上传头像`, color: '#722ed1' },
       danmaku: { icon: '💬', text: `${data.nickname || '匿名'}: ${data.content || ''}`, color: '#eb2f96' },
+      emoji_send: { icon: '😀', text: `${data.nickname || '匿名'} 发送 ${data.emoji || ''}`, color: '#ffd700' },
+      nickname_change: { icon: '✏️', text: `${data.old || ''} → ${data.new || ''}`, color: '#13c2c2' },
       mode_change: { icon: '🔄', text: `模式切换: ${data.mode || ''}`, color: '#fa8c16' },
       shatter: { icon: '💥', text: '粒子碎裂触发', color: '#f5222d' },
       rebuild: { icon: '🔨', text: '粒子重建触发', color: '#52c41a' },
@@ -758,6 +761,9 @@ export default function Control() {
 
             {/* Check-in Stats */}
             <CheckinStats socket={socket} />
+
+            {/* Activity Overview */}
+            <ActivityOverview socket={socket} />
 
             {/* Active Users Leaderboard */}
             <ActiveUsersLeaderboard socket={socket} />
