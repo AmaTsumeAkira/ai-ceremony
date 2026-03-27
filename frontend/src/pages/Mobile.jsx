@@ -56,6 +56,9 @@ export default function Mobile() {
   // System message state
   const [systemMsg, setSystemMsg] = useState(null)
 
+  // Recent danmaku preview state
+  const [recentDanmaku, setRecentDanmaku] = useState([])
+
   // Listen for mode changes
   useEffect(() => {
     if (!socket) return
@@ -120,6 +123,32 @@ export default function Mobile() {
       antMessage.success('🎊 祝福已发送！')
     })
 
+    // Blessing cleared (consistency — clear local state if needed)
+    const handleBlessingCleared = () => {
+      setBlessingText('')
+    }
+    socket.on('blessing:cleared', handleBlessingCleared)
+
+    // Recent danmaku preview
+    const handleDanmakuNew = (data) => {
+      const entry = {
+        id: `${data.nickname}_${data.content}_${Date.now()}`,
+        nickname: data.nickname || '匿名',
+        content: data.content,
+        color: data.color || '#40a9ff',
+        ts: Date.now(),
+      }
+      setRecentDanmaku(prev => [...prev.slice(-4), entry])
+      setTimeout(() => {
+        setRecentDanmaku(prev => prev.filter(d => d.id !== entry.id))
+      }, 5000)
+    }
+    const handleDanmakuCleared = () => {
+      setRecentDanmaku([])
+    }
+    socket.on('danmaku:new', handleDanmakuNew)
+    socket.on('danmaku:cleared', handleDanmakuCleared)
+
     // Request current poll on connect
     socket.emit('poll:get-active')
 
@@ -136,6 +165,9 @@ export default function Mobile() {
       socket.off('poll:voted', handlePollVoted)
       socket.off('system:message')
       socket.off('user:nickname-changed')
+      socket.off('blessing:cleared', handleBlessingCleared)
+      socket.off('danmaku:new', handleDanmakuNew)
+      socket.off('danmaku:cleared', handleDanmakuCleared)
     }
   }, [socket])
 
@@ -161,27 +193,34 @@ export default function Mobile() {
     }
   }
 
+  // Reset hasJoinedRef only on actual disconnect (socket event), not on every re-render
+  useEffect(() => {
+    if (!socket) return
+    const handleDisconnect = () => {
+      hasJoinedRef.current = false
+    }
+    socket.on('disconnect', handleDisconnect)
+    return () => {
+      socket.off('disconnect', handleDisconnect)
+    }
+  }, [socket])
+
   // Auto-register if previously registered (only once per connection)
   useEffect(() => {
+    if (!connected || hasJoinedRef.current) return
     const saved = localStorage.getItem('ai_ceremony_nickname')
     const savedUserId = localStorage.getItem('ceremony_userId')
-    if (connected && !hasJoinedRef.current) {
-      if (saved && savedUserId) {
-        setNickname(saved)
-        setUserId(Number(savedUserId))
-        emit('user:join', { nickname: saved, reconnectUserId: Number(savedUserId) })
-        setRegistered(true)
-        hasJoinedRef.current = true
-      } else if (saved) {
-        setNickname(saved)
-        emit('user:join', { nickname: saved })
-        setRegistered(true)
-        hasJoinedRef.current = true
-      }
-    }
-    // Reset flag on disconnect to allow re-join on reconnect
-    if (!connected) {
-      hasJoinedRef.current = false
+    if (saved && savedUserId) {
+      setNickname(saved)
+      setUserId(Number(savedUserId))
+      emit('user:join', { nickname: saved, reconnectUserId: Number(savedUserId) })
+      setRegistered(true)
+      hasJoinedRef.current = true
+    } else if (saved) {
+      setNickname(saved)
+      emit('user:join', { nickname: saved })
+      setRegistered(true)
+      hasJoinedRef.current = true
     }
   }, [connected, emit])
 
@@ -477,6 +516,22 @@ export default function Mobile() {
             </Button>
           </div>
         </div>
+
+        {/* Recent Danmaku Preview */}
+        {recentDanmaku.length > 0 && (
+          <div style={styles.recentDanmaku}>
+            <div style={styles.recentDanmakuHeader}>
+              <span style={{ fontSize: 14 }}>💬</span>
+              <span style={styles.recentDanmakuTitle}>最近弹幕</span>
+            </div>
+            {recentDanmaku.map((d) => (
+              <div key={d.id} style={{ ...styles.recentDanmakuItem, borderLeftColor: d.color }}>
+                <span style={styles.recentDanmakuNick}>{d.nickname}</span>
+                <span style={styles.recentDanmakuContent}>{d.content}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Danmaku Input Area */}
         <div style={styles.danmakuArea}>
@@ -866,5 +921,40 @@ const styles = {
     background: 'linear-gradient(135deg, #ffd700, #ff8c00)',
     border: 'none',
     color: '#000',
+  },
+
+  // Recent danmaku preview
+  recentDanmaku: {
+    marginTop: 16,
+    padding: '10px 12px',
+    background: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    border: '1px solid rgba(255,255,255,0.06)',
+  },
+  recentDanmakuHeader: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    marginBottom: 8,
+  },
+  recentDanmakuTitle: {
+    fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.5)',
+    letterSpacing: '1px',
+  },
+  recentDanmakuItem: {
+    display: 'flex', gap: 8, alignItems: 'baseline',
+    padding: '6px 8px',
+    marginBottom: 4,
+    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 6,
+    borderLeft: '3px solid #40a9ff',
+    animation: 'slideUp 0.3s ease-out',
+  },
+  recentDanmakuNick: {
+    fontSize: 12, color: 'rgba(255,255,255,0.5)',
+    fontWeight: 500, flexShrink: 0,
+    maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  recentDanmakuContent: {
+    fontSize: 13, color: '#fff', flex: 1,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
 }

@@ -131,6 +131,6 @@ cd ../server && node index.js
 
 - QR 码依赖外部 API (`api.qrserver.com`)，无网络时降级显示文字链接
 - 弹幕数据库自动清理，始终只保留最新 80 条
-- 头像上传限制 10MB
+- 头像上传限制 5MB
 - 默认端口 6588，可在 `server/index.js` 修改
 - 首次启动需删除 `server/ceremony.db` 以初始化最新数据库结构

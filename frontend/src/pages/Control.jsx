@@ -431,18 +431,21 @@ export default function Control() {
   }
 
   const handleExportUsers = async () => {
+    if (!authenticated) { antMessage.warning('请先完成认证'); return }
     if (await downloadCSV(`${API_BASE}/api/export/users`, `users_export_${Date.now()}.csv`)) {
       antMessage.success('用户数据已导出')
     }
   }
 
   const handleExportDanmaku = async () => {
+    if (!authenticated) { antMessage.warning('请先完成认证'); return }
     if (await downloadCSV(`${API_BASE}/api/export/danmaku`, `danmaku_export_${Date.now()}.csv`)) {
       antMessage.success('弹幕数据已导出')
     }
   }
 
   const handleExportCheckin = async () => {
+    if (!authenticated) { antMessage.warning('请先完成认证'); return }
     if (await downloadCSV(`${API_BASE}/api/export/checkin`, `checkin_export_${Date.now()}.csv`)) {
       antMessage.success('签到记录已导出')
     }

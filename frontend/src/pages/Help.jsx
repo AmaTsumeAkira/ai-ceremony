@@ -111,6 +111,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>系统消息</td><td>控制端发送的系统提示会显示在界面顶部，点击可关闭，8秒自动消失</td></tr>
               <tr style={trStyle}><td style={tdLabel}>修改昵称</td><td>点击顶部昵称区域，弹出修改框，输入新昵称后确认即可修改（12字以内，不可与他人重复）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>送祝福</td><td>在弹幕输入区上方的「送祝福」栏输入祝福内容，点击发送，祝福消息会飘到大屏幕上（每5秒最多发1条，最多80字）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>最近弹幕</td><td>在弹幕输入区上方实时展示最近 5 条弹幕，每条 5 秒自动消失，带弹幕颜色左边框标识，方便手机端查看其他人的弹幕内容</td></tr>
               <tr style={trStyle}><td style={tdLabel}>当前状态</td><td>顶部显示当前大屏模式（待命/碎裂/马赛克等）</td></tr>
             </tbody>
           </table>
