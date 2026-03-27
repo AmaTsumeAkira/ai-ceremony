@@ -492,7 +492,7 @@ function setupSocket(io) {
     function checkBlessingRate(socketId) {
       const now = Date.now();
       const entry = blessingRateLimit.get(socketId);
-      if (!entry || now - entry.windowStart > 5000) {
+      if (!entry || now - entry.windowStart > 10000) {
         blessingRateLimit.set(socketId, { count: 1, windowStart: now });
         return true;
       }

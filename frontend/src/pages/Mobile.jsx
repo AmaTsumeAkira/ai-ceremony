@@ -102,12 +102,13 @@ export default function Mobile() {
     socket.on('poll:voted', handlePollVoted)
 
     // System message listener
-    socket.on('system:message', (data) => {
+    const handleSystemMessage = (data) => {
       setSystemMsg(data.text)
-    })
+    }
+    socket.on('system:message', handleSystemMessage)
 
     // Nickname change result
-    socket.on('user:nickname-changed', (data) => {
+    const handleNicknameChanged = (data) => {
       if (data.ok) {
         setNickname(data.nickname)
         localStorage.setItem('ai_ceremony_nickname', data.nickname)
@@ -116,12 +117,14 @@ export default function Mobile() {
       } else {
         antMessage.error(data.message || '修改失败')
       }
-    })
+    }
+    socket.on('user:nickname-changed', handleNicknameChanged)
 
     // Blessing sent result
-    socket.on('blessing:sent', () => {
+    const handleBlessingSent = () => {
       antMessage.success('🎊 祝福已发送！')
-    })
+    }
+    socket.on('blessing:sent', handleBlessingSent)
 
     // Blessing cleared (consistency — clear local state if needed)
     const handleBlessingCleared = () => {
@@ -163,8 +166,9 @@ export default function Mobile() {
       socket.off('poll:hidden', handlePollHidden)
       socket.off('poll:active', handlePollActive)
       socket.off('poll:voted', handlePollVoted)
-      socket.off('system:message')
-      socket.off('user:nickname-changed')
+      socket.off('system:message', handleSystemMessage)
+      socket.off('user:nickname-changed', handleNicknameChanged)
+      socket.off('blessing:sent', handleBlessingSent)
       socket.off('blessing:cleared', handleBlessingCleared)
       socket.off('danmaku:new', handleDanmakuNew)
       socket.off('danmaku:cleared', handleDanmakuCleared)

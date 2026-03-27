@@ -39,6 +39,7 @@ import ActiveUsersLeaderboard from '../components/ActiveUsersLeaderboard'
 import CheckinStats from '../components/CheckinStats'
 import CheckinLeaderboard from '../components/CheckinLeaderboard'
 import ActivityOverview from '../components/ActivityOverview'
+import LeaderboardPoster from '../components/LeaderboardPoster'
 import JoinQRCode from '../components/JoinQRCode'
 import axios from 'axios'
 
@@ -113,6 +114,9 @@ export default function Control() {
   const [pollOptions, setPollOptions] = useState(['', ''])
   const [activePoll, setActivePoll] = useState(null)
   const [pollResults, setPollResults] = useState(null)
+
+  // Leaderboard data for poster generation
+  const [leaderboardData, setLeaderboardData] = useState([])
 
   // Audio refs
   const audioContextRef = useRef(null)
@@ -263,8 +267,15 @@ export default function Control() {
         setActivityLogs(res.data)
       } catch (e) { /* ignore */ }
     }
+    const loadLeaderboard = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/leaderboard/checkin?limit=10`)
+        setLeaderboardData(res.data || [])
+      } catch (e) { /* ignore */ }
+    }
     loadStats()
     loadLogs()
+    loadLeaderboard()
   }, [])
 
   // ========== Mic ==========
@@ -537,13 +548,30 @@ export default function Control() {
   // ========== Periodic log refresh ==========
   useEffect(() => {
     if (!authenticated) return
+    let retryCount = 0
+    const maxRetries = 3
     const interval = setInterval(async () => {
       try {
         const pwd = sessionStorage.getItem('ceremony_password');
         const headers = pwd ? { Authorization: `Bearer ${pwd}` } : {};
         const res = await axios.get(`${API_BASE}/api/logs?limit=50`, { headers })
         setActivityLogs(res.data)
-      } catch (e) { /* ignore */ }
+        retryCount = 0 // 重置重试计数
+      } catch (e) {
+        if (e.response?.status === 401) {
+          // Token 过期，停止刷新并要求重新认证
+          clearInterval(interval)
+          setAuthenticated(false)
+          sessionStorage.removeItem('ceremony_password')
+          antMessage.error('认证已过期，请重新输入密码')
+        } else {
+          retryCount++
+          if (retryCount >= maxRetries) {
+            clearInterval(interval)
+            antMessage.warning('日志刷新失败次数过多，已停止自动刷新')
+          }
+        }
+      }
     }, 8000)
     return () => clearInterval(interval)
   }, [authenticated])
@@ -788,6 +816,9 @@ export default function Control() {
 
             {/* Check-in Leaderboard */}
             <CheckinLeaderboard socket={socket} />
+            <div style={{ textAlign: 'right' }}>
+              <LeaderboardPoster leaderboard={leaderboardData} />
+            </div>
 
             {/* Activity Overview */}
             <ActivityOverview socket={socket} />
