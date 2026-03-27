@@ -82,7 +82,7 @@ router.post('/user/upload-face', upload.single('face'), (req, res) => {
 });
 
 // GET /api/users — 获取所有注册用户（含头像和无头像的）
-router.get('/users', (req, res) => {
+router.get('/users', requireExportAuth, (req, res) => {
   const rows = db.prepare(
     'SELECT id, nickname, face_url, created_at FROM users ORDER BY created_at DESC'
   ).all();
@@ -90,7 +90,7 @@ router.get('/users', (req, res) => {
 });
 
 // GET /api/faces — 获取所有已上传头像
-router.get('/faces', (req, res) => {
+router.get('/faces', requireExportAuth, (req, res) => {
   const rows = db.prepare(
     'SELECT id, nickname, face_url FROM users WHERE face_url IS NOT NULL ORDER BY created_at DESC'
   ).all();
@@ -197,7 +197,7 @@ const bgUpload = multer({
   },
 });
 
-router.post('/upload-background', bgUpload.single('image'), (req, res) => {
+router.post('/upload-background', requireExportAuth, bgUpload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: '未上传文件' });
   }

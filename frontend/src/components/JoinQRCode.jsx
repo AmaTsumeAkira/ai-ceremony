@@ -3,10 +3,7 @@ import { Card, Button, Space, Tag, Input } from 'antd'
 import { QrcodeOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
 import QRCode from 'qrcode'
 import axios from 'axios'
-
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:6588'
-  : `${window.location.protocol}//${window.location.hostname}:6588`
+import { API_BASE } from '../config'
 
 const JOIN_URL = window.location.hostname === 'localhost'
   ? `http://${window.location.hostname}:${window.location.port || '6588'}`

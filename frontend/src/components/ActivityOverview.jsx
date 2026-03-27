@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Tag, Tooltip } from 'antd'
 import { BarChartOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import axios from 'axios'
-
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:6588'
-  : `${window.location.protocol}//${window.location.hostname}:6588`
+import { API_BASE } from '../config'
 
 const EVENT_COLORS = {
   user_join: '#40a9ff',

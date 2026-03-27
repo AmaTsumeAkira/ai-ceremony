@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Card, Tag, Progress } from 'antd'
 import { SmileOutlined, FireOutlined } from '@ant-design/icons'
 import axios from 'axios'
-
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:6588'
-  : `${window.location.protocol}//${window.location.hostname}:6588`
+import { API_BASE } from '../config'
 
 export default function EmojiLeaderboard({ socket }) {
   const [stats, setStats] = useState([])

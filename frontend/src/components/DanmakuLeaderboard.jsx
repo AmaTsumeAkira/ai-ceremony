@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Card, Tag } from 'antd'
 import { TrophyOutlined } from '@ant-design/icons'
 import axios from 'axios'
-
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:6588'
-  : `${window.location.protocol}//${window.location.hostname}:6588`
+import { API_BASE } from '../config'
 
 const MEDAL_COLORS = ['#ffd700', '#c0c0c0', '#cd7f32']
 const MEDAL_EMOJI = ['🥇', '🥈', '🥉']
