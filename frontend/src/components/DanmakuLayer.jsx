@@ -5,12 +5,16 @@ const DANMAKU_SPEED_MAX = 200
 const DANMAKU_FONT_MIN = 32
 const DANMAKU_FONT_MAX = 48
 const LANE_HEIGHT = 56
+const PINNED_DURATION = 3000 // 精选弹幕高亮展示时长 ms
 
 export default function DanmakuLayer({ socket, mode }) {
   const containerRef = useRef(null)
   const [danmakus, setDanmakus] = useState([])
   const idCounterRef = useRef(0)
   const activeRef = useRef([])
+
+  // Pinned danmaku state — gold highlight display
+  const [pinnedDanmaku, setPinnedDanmaku] = useState(null)
 
   // Add a new danmaku
   const addDanmaku = useCallback((data) => {
@@ -57,12 +61,20 @@ export default function DanmakuLayer({ socket, mode }) {
       setDanmakus([])
     }
 
+    // Handle pinned danmaku — show gold highlight overlay
+    const handlePinned = (data) => {
+      setPinnedDanmaku(data)
+      setTimeout(() => setPinnedDanmaku(null), PINNED_DURATION)
+    }
+
     socket.on('danmaku:new', handleDanmaku)
     socket.on('danmaku:cleared', handleClear)
+    socket.on('danmaku:pinned', handlePinned)
 
     return () => {
       socket.off('danmaku:new', handleDanmaku)
       socket.off('danmaku:cleared', handleClear)
+      socket.off('danmaku:pinned', handlePinned)
     }
   }, [socket, addDanmaku])
 
@@ -119,6 +131,56 @@ export default function DanmakuLayer({ socket, mode }) {
         )
       })}
 
+      {/* Pinned danmaku — gold highlight overlay at center */}
+      {pinnedDanmaku && (
+        <div
+          key={`pinned-${pinnedDanmaku.id}-${Date.now()}`}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 100,
+            padding: '24px 60px',
+            background: 'linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,140,0,0.15))',
+            border: '3px solid #ffd700',
+            borderRadius: 20,
+            boxShadow: '0 0 40px rgba(255,215,0,0.5), 0 0 80px rgba(255,215,0,0.2), inset 0 0 30px rgba(255,215,0,0.1)',
+            backdropFilter: 'blur(10px)',
+            textAlign: 'center',
+            animation: 'pinnedAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), pinnedFadeOut 0.6s ease-in 2.4s forwards',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <div style={{
+            fontSize: 14,
+            color: '#ffd700',
+            fontWeight: 600,
+            marginBottom: 8,
+            letterSpacing: '2px',
+            textShadow: '0 0 10px rgba(255,215,0,0.6)',
+          }}>
+            ⭐ 精选弹幕
+          </div>
+          <div style={{
+            fontSize: 'clamp(28px, 6vw, 56px)',
+            fontWeight: 900,
+            color: '#fff',
+            textShadow: '0 0 20px rgba(255,215,0,0.8), 0 2px 10px rgba(0,0,0,0.5)',
+            letterSpacing: '2px',
+          }}>
+            {pinnedDanmaku.content}
+          </div>
+          <div style={{
+            fontSize: 14,
+            color: 'rgba(255,215,0,0.7)',
+            marginTop: 8,
+          }}>
+            —— {pinnedDanmaku.nickname}
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes danmakuScroll {
           from {
@@ -126,6 +188,26 @@ export default function DanmakuLayer({ socket, mode }) {
           }
           to {
             transform: translateX(calc(-100vw - 500px));
+          }
+        }
+        @keyframes pinnedAppear {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.6);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        @keyframes pinnedFadeOut {
+          from {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1.05);
           }
         }
       `}</style>

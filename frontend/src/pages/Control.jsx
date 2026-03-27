@@ -31,6 +31,7 @@ import {
   ClearOutlined,
   LockOutlined,
   DownloadOutlined,
+  StarOutlined,
 } from '@ant-design/icons'
 import { useSocket } from '../hooks/useSocket'
 import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
@@ -118,6 +119,10 @@ export default function Control() {
 
   // Leaderboard data for poster generation
   const [leaderboardData, setLeaderboardData] = useState([])
+
+  // Danmaku list for pin feature
+  const [danmakuList, setDanmakuList] = useState([])
+  const [pinnedHistory, setPinnedHistory] = useState([])
 
   // Audio refs
   const audioContextRef = useRef(null)
@@ -226,6 +231,18 @@ export default function Control() {
     socket.on('poll:closed', handlePollClosed)
     socket.on('poll:active', handlePollActive)
 
+    // Danmaku listeners for pin feature
+    const handleDanmakuNew = (data) => {
+      setDanmakuList(prev => {
+        const next = [...prev, { ...data, _key: `${data.id}_${Date.now()}` }]
+        return next.slice(-50) // keep last 50
+      })
+    }
+    const handleDanmakuCleared = () => { setDanmakuList([]) }
+
+    socket.on('danmaku:new', handleDanmakuNew)
+    socket.on('danmaku:cleared', handleDanmakuCleared)
+
     socket.emit('control:register')
     socket.emit('poll:get-active')
 
@@ -239,6 +256,8 @@ export default function Control() {
       socket.off('poll:results', handlePollResults)
       socket.off('poll:closed', handlePollClosed)
       socket.off('poll:active', handlePollActive)
+      socket.off('danmaku:new', handleDanmakuNew)
+      socket.off('danmaku:cleared', handleDanmakuCleared)
     }
   }, [socket])
 
@@ -274,9 +293,16 @@ export default function Control() {
         setLeaderboardData(res.data || [])
       } catch (e) { /* ignore */ }
     }
+    const loadRecentDanmaku = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/danmaku/recent`)
+        setDanmakuList((res.data || []).map(d => ({ ...d, _key: `${d.id}_${d.created_at}` })))
+      } catch (e) { /* ignore */ }
+    }
     loadStats()
     loadLogs()
     loadLeaderboard()
+    loadRecentDanmaku()
   }, [])
 
   // ========== Mic ==========
@@ -463,6 +489,18 @@ export default function Control() {
     if (await downloadCSV(`${API_BASE}/api/export/checkin`, `checkin_export_${Date.now()}.csv`)) {
       antMessage.success('签到记录已导出')
     }
+  }
+
+  const handlePinDanmaku = (danmaku) => {
+    emit('control:pin-danmaku', { danmakuId: danmaku.id })
+    setPinnedHistory(prev => [{
+      id: danmaku.id,
+      nickname: danmaku.nickname || '匿名',
+      content: danmaku.content,
+      color: danmaku.color,
+      pinned_at: new Date().toISOString(),
+    }, ...prev].slice(0, 20))
+    antMessage.success('⭐ 弹幕已精选！')
   }
 
   const getModeColor = (mode) => {
@@ -840,6 +878,69 @@ export default function Control() {
 
             {/* Emoji Leaderboard */}
             <EmojiLeaderboard socket={socket} />
+
+            {/* Danmaku Pin Panel */}
+            <Card title="⭐ 弹幕精选" style={styles.card} size="small">
+              <div style={{ maxHeight: 400, overflowY: 'auto', scrollbarWidth: 'thin' }}>
+                {danmakuList.length === 0 ? (
+                  <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0', fontSize: 13 }}>
+                    暂无弹幕
+                  </div>
+                ) : (
+                  danmakuList.slice().reverse().map((d) => (
+                    <div key={d._key} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 6px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    }}>
+                      <div style={{
+                        width: 4, height: 28, borderRadius: 2,
+                        background: d.color || '#40a9ff', flexShrink: 0,
+                      }} />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                          {d.nickname || '匿名'}
+                        </div>
+                        <div style={{
+                          fontSize: 13, color: '#fff',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {d.content}
+                        </div>
+                      </div>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<StarOutlined />}
+                        onClick={() => handlePinDanmaku(d)}
+                        style={{ color: '#ffd700', flexShrink: 0 }}
+                        title="精选此弹幕"
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+              {pinnedHistory.length > 0 && (
+                <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,215,0,0.15)', paddingTop: 8 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,215,0,0.6)', marginBottom: 6 }}>
+                    已精选 ({pinnedHistory.length})
+                  </div>
+                  {pinnedHistory.slice(0, 5).map((p, i) => (
+                    <div key={`${p.id}_${i}`} style={{
+                      display: 'flex', gap: 6, alignItems: 'center',
+                      padding: '4px 0', fontSize: 12,
+                    }}>
+                      <span style={{ color: '#ffd700' }}>⭐</span>
+                      <span style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, maxWidth: 50, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.nickname}
+                      </span>
+                      <span style={{ color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.content}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
             {/* Volume Visualizer */}
             <Card title="🎙️ 实时音量" style={styles.card} size="small">

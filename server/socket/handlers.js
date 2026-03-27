@@ -51,8 +51,11 @@ function logEvent(eventType, eventData) {
   try {
     const dataStr = typeof eventData === 'object' ? JSON.stringify(eventData) : String(eventData || '');
     db.prepare('INSERT INTO ceremony_logs (event_type, event_data) VALUES (?, ?)').run(eventType, dataStr);
-    // 保留最近 2000 条
-    db.prepare(`DELETE FROM ceremony_logs WHERE id NOT IN (SELECT id FROM ceremony_logs ORDER BY id DESC LIMIT 2000)`).run();
+    // 保留最近 2000 条 — 使用 id 范围优化，避免全表扫描
+    const row = db.prepare('SELECT id FROM ceremony_logs ORDER BY id DESC LIMIT 1 OFFSET 1999').get();
+    if (row) {
+      db.prepare('DELETE FROM ceremony_logs WHERE id < ?').run(row.id);
+    }
   } catch (e) { /* ignore */ }
 }
 
@@ -330,11 +333,11 @@ function setupSocket(io) {
         logEvent('danmaku', { nickname: danmaku.nickname, content: content.trim() });
         console.log(`[Danmaku] ${danmaku.nickname}: ${content.trim()}`);
 
-        db.prepare(`
-          DELETE FROM danmaku WHERE id NOT IN (
-            SELECT id FROM danmaku ORDER BY id DESC LIMIT 80
-          )
-        `).run();
+        // 保留最近 80 条弹幕 — 使用 id 范围优化
+        const danmakuRow = db.prepare('SELECT id FROM danmaku ORDER BY id DESC LIMIT 1 OFFSET 79').get();
+        if (danmakuRow) {
+          db.prepare('DELETE FROM danmaku WHERE id < ?').run(danmakuRow.id);
+        }
       } catch (err) {
         socket.emit('error', { message: err.message });
       }
@@ -398,6 +401,36 @@ function setupSocket(io) {
       io.emit('danmaku:cleared');
       broadcastState(io);
       console.log('[Control] danmaku cleared');
+    }));
+
+    // ========== 弹幕精选/置顶 ==========
+    socket.on('control:pin-danmaku', requireAuth((data) => {
+      const { danmakuId } = data;
+      if (!danmakuId) {
+        return socket.emit('error', { message: 'danmakuId 不能为空' });
+      }
+      // 从 danmaku 表查询弹幕
+      const danmaku = db.prepare('SELECT id, user_id, content, color FROM danmaku WHERE id = ?').get(danmakuId);
+      if (!danmaku) {
+        return socket.emit('error', { message: '弹幕不存在或已被清除' });
+      }
+      // 查询昵称
+      const user = danmaku.user_id ? db.prepare('SELECT nickname FROM users WHERE id = ?').get(danmaku.user_id) : null;
+      const nickname = user?.nickname || '匿名';
+      // 记录精选弹幕
+      db.prepare(
+        'INSERT INTO pinned_danmaku (danmaku_id, user_id, nickname, content, color) VALUES (?, ?, ?, ?, ?)'
+      ).run(danmaku.id, danmaku.user_id, nickname, danmaku.content, danmaku.color || '#ffffff');
+      // 广播到 Display 端
+      io.emit('danmaku:pinned', {
+        id: danmaku.id,
+        nickname,
+        content: danmaku.content,
+        color: danmaku.color || '#ffffff',
+        pinned_at: new Date().toISOString(),
+      });
+      logEvent('danmaku_pinned', { nickname, content: danmaku.content, danmakuId: danmaku.id });
+      console.log(`[Control] pinned danmaku: ${nickname}: ${danmaku.content}`);
     }));
 
     socket.on('control:set-mode', requireAuth((data) => {
@@ -536,8 +569,11 @@ function setupSocket(io) {
         socket.emit('blessing:sent', { ok: true, id: result.lastInsertRowid });
         console.log(`[Blessing] ${socket.userNickname}: ${text}`);
 
-        // 保留最近 200 条祝福
-        db.prepare(`DELETE FROM blessings WHERE id NOT IN (SELECT id FROM blessings ORDER BY id DESC LIMIT 200)`).run();
+        // 保留最近 200 条祝福 — 使用 id 范围优化
+        const blessingRow = db.prepare('SELECT id FROM blessings ORDER BY id DESC LIMIT 1 OFFSET 199').get();
+        if (blessingRow) {
+          db.prepare('DELETE FROM blessings WHERE id < ?').run(blessingRow.id);
+        }
       } catch (err) {
         socket.emit('error', { message: err.message });
       }

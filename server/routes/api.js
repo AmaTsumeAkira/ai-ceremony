@@ -112,6 +112,14 @@ router.get('/danmaku/recent', (req, res) => {
   res.json(rows.reverse()); // 按时间正序返回
 });
 
+// GET /api/danmaku/pinned — 最近精选弹幕
+router.get('/danmaku/pinned', (req, res) => {
+  const rows = db.prepare(
+    'SELECT id, danmaku_id, nickname, content, color, pinned_at FROM pinned_danmaku ORDER BY pinned_at DESC LIMIT 50'
+  ).all();
+  res.json(rows);
+});
+
 // GET /api/danmaku/leaderboard — 弹幕排行榜
 router.get('/danmaku/leaderboard', (req, res) => {
   const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 100));

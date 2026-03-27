@@ -74,6 +74,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>设定秒数后启动倒计时，结束后自动碎裂；支持 5/10/15/30/45/60 秒快捷预设按钮，也可用滑块自定义 1-60 秒；可随时取消</td></tr>
               <tr style={trStyle}><td style={tdLabel}>能量条</td><td>麦克风音量驱动，满值自动触发重建；阈值可实时调整并同步至服务器</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕管理</td><td>一键清空所有弹幕</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>弹幕精选</td><td>在「弹幕精选」面板查看最近弹幕列表，点击 ⭐ 按钮精选某条弹幕，精选后大屏以金色边框+放大展示 3 秒特殊高亮效果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克预览</td><td>无头像时用 Emoji 填充预览效果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>背景上传</td><td>上传自定义背景图替换大屏背景</td></tr>
               <tr style={trStyle}><td style={tdLabel}>导出用户</td><td>导出所有注册用户数据为 CSV 文件（含昵称、头像、弹幕数）</td></tr>
@@ -133,6 +134,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>在线人数</td><td>右上角实时显示当前在线连接数（观众+控制端），点击可展开在线观众昵称列表</td></tr>
               <tr style={trStyle}><td style={tdLabel}>粒子文字</td><td>默认显示"AIGC 数字素养大赛"，控制台可改</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕</td><td>观众发送的弹幕自动飘过屏幕</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>精选弹幕</td><td>控制端精选的弹幕以金色边框+放大效果居中展示 3 秒</td></tr>
               <tr style={trStyle}><td style={tdLabel}>Emoji</td><td>观众发送的 Emoji 从底部飘起</td></tr>
               <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>控制台启动后大屏全屏显示倒计时数字</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克</td><td>观众头像/Emoji 拼成圆形马赛克墙</td></tr>
@@ -179,6 +181,8 @@ const Help = () => {
               <tr style={trStyle}><td style={tdCode}>SOCKET blessing:send</td><td>发送祝福（需已注册，{content}，自动上墙，返回 blessing:sent）</td></tr>
               <tr style={trStyle}><td style={tdCode}>SOCKET blessing:get-recent</td><td>获取最近30条祝福（返回 blessing:recent）</td></tr>
               <tr style={trStyle}><td style={tdCode}>SOCKET control:clear-blessings</td><td>清空所有祝福（需认证，广播 blessing:cleared）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET control:pin-danmaku</td><td>精选弹幕（需认证，{danmakuId}，广播 danmaku:pinned 到大屏）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/danmaku/pinned</td><td>最近精选弹幕记录（?limit=50）</td></tr>
             </tbody>
           </table>
         </div>

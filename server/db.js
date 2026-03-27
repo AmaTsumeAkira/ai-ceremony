@@ -76,6 +76,20 @@ db.exec(`
   );
 `);
 
+// 弹幕精选表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pinned_danmaku (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    danmaku_id INTEGER NOT NULL,
+    user_id INTEGER,
+    nickname TEXT,
+    content TEXT NOT NULL,
+    color TEXT DEFAULT '#ffffff',
+    pinned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (danmaku_id) REFERENCES danmaku(id)
+  );
+`);
+
 // 初始化默认系统状态
 const defaultStates = {
   mode: 'idle',
