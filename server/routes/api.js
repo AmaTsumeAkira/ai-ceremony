@@ -30,6 +30,9 @@ const upload = multer({
 
 // 导出端点认证中间件（必须在使用它的路由之前定义）
 function requireExportAuth(req, res, next) {
+  if (!process.env.CONTROL_PASSWORD) {
+    return res.status(500).json({ error: '服务器未配置 CONTROL_PASSWORD' });
+  }
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
     return res.status(401).json({ error: '未认证' });
@@ -314,6 +317,20 @@ router.get('/export/checkin', requireExportAuth, (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename=checkin_export_${Date.now()}.csv`);
   res.send(csv);
+});
+
+// multer 错误处理中间件
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: '文件大小超出限制' });
+    }
+    return res.status(400).json({ error: `上传错误: ${err.message}` });
+  }
+  if (err && err.message === '只支持图片文件') {
+    return res.status(400).json({ error: err.message });
+  }
+  next(err);
 });
 
 module.exports = router;

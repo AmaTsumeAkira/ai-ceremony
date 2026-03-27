@@ -31,6 +31,9 @@ function checkDanmakuRate(socketId) {
 const emojiRateLimit = new Map(); // socketId -> { count, windowStart }
 const EMOJI_MAX_PER_SEC = 3;
 
+// ========== 祝福速率限制 ==========
+const blessingRateLimit = new Map(); // socketId -> { count, windowStart }
+
 function checkEmojiRate(socketId) {
   const now = Date.now();
   const entry = emojiRateLimit.get(socketId);
@@ -98,6 +101,16 @@ function setupSocket(io) {
     for (const [id, entry] of danmakuRateLimit) {
       if (now - entry.windowStart > 5000) {
         danmakuRateLimit.delete(id);
+      }
+    }
+    for (const [id, entry] of emojiRateLimit) {
+      if (now - entry.windowStart > 5000) {
+        emojiRateLimit.delete(id);
+      }
+    }
+    for (const [id, entry] of blessingRateLimit) {
+      if (now - entry.windowStart > 10000) {
+        blessingRateLimit.delete(id);
       }
     }
   }, 30000);
@@ -476,9 +489,6 @@ function setupSocket(io) {
     });
 
     // ========== 祝福墙 ==========
-    // 祝福速率限制：每个 socket 每 5 秒最多 1 条
-    const blessingRateLimit = new Map();
-
     function checkBlessingRate(socketId) {
       const now = Date.now();
       const entry = blessingRateLimit.get(socketId);
