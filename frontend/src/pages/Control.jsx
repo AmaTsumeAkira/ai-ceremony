@@ -37,6 +37,7 @@ import DanmakuLeaderboard from '../components/DanmakuLeaderboard'
 import EmojiLeaderboard from '../components/EmojiLeaderboard'
 import ActiveUsersLeaderboard from '../components/ActiveUsersLeaderboard'
 import CheckinStats from '../components/CheckinStats'
+import CheckinLeaderboard from '../components/CheckinLeaderboard'
 import ActivityOverview from '../components/ActivityOverview'
 import JoinQRCode from '../components/JoinQRCode'
 import axios from 'axios'
@@ -784,6 +785,9 @@ export default function Control() {
 
             {/* Check-in Stats */}
             <CheckinStats socket={socket} />
+
+            {/* Check-in Leaderboard */}
+            <CheckinLeaderboard socket={socket} />
 
             {/* Activity Overview */}
             <ActivityOverview socket={socket} />

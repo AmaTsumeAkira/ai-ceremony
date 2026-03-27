@@ -13,6 +13,9 @@ export function useSocket() {
   const [socket, setSocket] = useState(null)
 
   useEffect(() => {
+    // 防止重复创建连接
+    if (socketRef.current) return
+
     const s = io(SERVER_URL, {
       // 优先 WebSocket，微信内置浏览器降级到 polling
       transports: ['websocket', 'polling'],

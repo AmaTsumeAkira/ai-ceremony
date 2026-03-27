@@ -84,6 +84,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>签到统计</td><td>实时统计注册用户数、头像上传率、弹幕总数、Emoji 总数，含参与度分布条形图和最近加入用户列表</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活动数据概览</td><td>按小时统计活动事件分布柱状图，含加入/弹幕/Emoji/投票等分类标签，悬浮显示每小时明细</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活跃用户排行榜</td><td>实时显示互动最频繁的用户 Top 10（综合弹幕、Emoji、头像上传次数）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>签到排行榜</td><td>按签到先后顺序展示 Top 15 用户排名，含签到速度（相对第一位的时间差）、头像、弹幕数，前三名有金银铜牌标识，实时更新</td></tr>
               <tr style={trStyle}><td style={tdLabel}>签到二维码</td><td>控制台右侧面板展示活动加入二维码，含实时在线人数和一键复制链接功能，方便分享给观众扫码加入</td></tr>
               <tr style={trStyle}><td style={tdLabel}>活动日志</td><td>右侧面板实时显示用户加入、弹幕、模式切换等活动记录，可清空</td></tr>
               <tr style={trStyle}><td style={tdLabel}>系统消息</td><td>向所有手机端发送系统提示消息，显示在用户界面顶部（点击可关闭，8秒自动消失）</td></tr>
@@ -165,6 +166,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdCode}>GET /api/export/checkin</td><td>批量导出签到记录 CSV（含弹幕数、Emoji数等汇总数据）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/users</td><td>所有注册用户列表（含未上传头像的用户）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/danmaku/leaderboard</td><td>弹幕排行榜（?limit=20，按弹幕数降序）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>GET /api/leaderboard/checkin</td><td>签到排行榜（?limit=20，按注册时间升序，含签到速度）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/emoji/stats</td><td>Emoji 反应统计（每种 emoji 的发送次数和占比）</td></tr>
               <tr style={trStyle}><td style={tdCode}>GET /api/logs</td><td>活动日志（可选 ?limit=50&type=xxx）</td></tr>
               <tr style={trStyle}><td style={tdCode}>DELETE /api/logs</td><td>清空活动日志（需认证）</td></tr>

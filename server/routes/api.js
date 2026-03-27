@@ -92,8 +92,8 @@ router.get('/users', (req, res) => {
   res.json(rows);
 });
 
-// GET /api/faces — 获取所有已上传头像
-router.get('/faces', requireExportAuth, (req, res) => {
+// GET /api/faces — 获取所有已上传头像（大屏端需要公开访问）
+router.get('/faces', (req, res) => {
   const rows = db.prepare(
     'SELECT id, nickname, face_url FROM users WHERE face_url IS NOT NULL ORDER BY created_at DESC'
   ).all();
@@ -234,6 +234,46 @@ router.get('/logs', requireExportAuth, (req, res) => {
 router.delete('/logs', requireExportAuth, (req, res) => {
   db.prepare('DELETE FROM ceremony_logs').run();
   res.json({ ok: true });
+});
+
+// GET /api/leaderboard/checkin — 签到排行榜（按注册顺序/速度排名）
+router.get('/leaderboard/checkin', (req, res) => {
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 100));
+  try {
+    // 获取第一个用户的注册时间作为基准
+    const firstUser = db.prepare('SELECT created_at FROM users ORDER BY created_at ASC LIMIT 1').get();
+    if (!firstUser) return res.json([]);
+
+    const baseTime = new Date(firstUser.created_at).getTime();
+    const rows = db.prepare(`
+      SELECT id, nickname, face_url, created_at,
+        (SELECT COUNT(*) FROM danmaku d WHERE d.user_id = u.id) AS danmaku_count
+      FROM users
+      WHERE nickname IS NOT NULL
+      ORDER BY created_at ASC
+      LIMIT ?
+    `).all(limit);
+
+    const result = rows.map((row, index) => {
+      const checkinTime = new Date(row.created_at).getTime();
+      const speedSeconds = Math.round((checkinTime - baseTime) / 1000);
+      return {
+        rank: index + 1,
+        id: row.id,
+        nickname: row.nickname,
+        face_url: row.face_url,
+        created_at: row.created_at,
+        danmaku_count: row.danmaku_count,
+        speed_seconds: speedSeconds,
+        speed_label: speedSeconds < 60
+          ? `${speedSeconds}秒`
+          : `${Math.floor(speedSeconds / 60)}分${speedSeconds % 60}秒`,
+      };
+    });
+    res.json(result);
+  } catch (e) {
+    res.json([]);
+  }
 });
 
 // GET /api/leaderboard/active-users — 活跃用户排行榜（需认证）

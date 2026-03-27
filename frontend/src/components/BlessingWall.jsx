@@ -45,7 +45,7 @@ export default function BlessingWall({ socket }) {
       socket.off('blessing:new', handleNew);
       socket.off('blessing:cleared', handleCleared);
       socket.off('blessing:recent', handleRecent);
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [socket]);
 
