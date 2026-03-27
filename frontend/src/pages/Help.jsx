@@ -88,6 +88,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>输入公告内容并发送，大屏全屏展示公告消息（可设置显示时长 3-15 秒，可随时取消）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>从已注册用户中随机抽取 1-10 位幸运观众，大屏全屏展示中奖名单（带动画效果）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>实时投票</td><td>创建投票问题和选项（2-6个），手机端实时投票，大屏展示动态柱状图结果。投票期间可随时关闭，关闭后可移除大屏显示</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>祝福墙</td><td>观众发送的祝福消息会在大屏右侧飘起展示（8秒自动消失），可一键清空所有祝福</td></tr>
             </tbody>
           </table>
         </div>
@@ -108,6 +109,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>投票</td><td>当控制端发起投票时，手机端显示投票选项，点击选项即投票，投票后实时显示结果</td></tr>
               <tr style={trStyle}><td style={tdLabel}>系统消息</td><td>控制端发送的系统提示会显示在界面顶部，点击可关闭，8秒自动消失</td></tr>
               <tr style={trStyle}><td style={tdLabel}>修改昵称</td><td>点击顶部昵称区域，弹出修改框，输入新昵称后确认即可修改（12字以内，不可与他人重复）</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>送祝福</td><td>在弹幕输入区上方的「送祝福」栏输入祝福内容，点击发送，祝福消息会飘到大屏幕上（每5秒最多发1条，最多80字）</td></tr>
               <tr style={trStyle}><td style={tdLabel}>当前状态</td><td>顶部显示当前大屏模式（待命/碎裂/马赛克等）</td></tr>
             </tbody>
           </table>
@@ -131,6 +133,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>公告弹窗</td><td>控制台发送公告后大屏全屏展示，自动消失</td></tr>
               <tr style={trStyle}><td style={tdLabel}>幸运抽奖</td><td>控制台启动抽奖后大屏全屏展示，先滚动随机名字再揭晓中奖名单</td></tr>
               <tr style={trStyle}><td style={tdLabel}>实时投票</td><td>控制端发起投票后大屏全屏展示投票问题和动态柱状图，实时更新投票结果</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>祝福墙</td><td>观众发送的祝福消息从右侧飘起展示，8秒自动消失，每条包含昵称和祝福内容</td></tr>
             </tbody>
           </table>
         </div>
@@ -166,6 +169,9 @@ const Help = () => {
               <tr style={trStyle}><td style={tdCode}>SOCKET poll:vote</td><td>投票（{pollId, optionIndex}）</td></tr>
               <tr style={trStyle}><td style={tdCode}>SOCKET poll:get-active</td><td>获取当前活跃投票</td></tr>
               <tr style={trStyle}><td style={tdCode}>SOCKET user:change-nickname</td><td>修改昵称（{nickname}，需已注册，返回 user:nickname-changed 事件）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET blessing:send</td><td>发送祝福（需已注册，{content}，自动上墙，返回 blessing:sent）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET blessing:get-recent</td><td>获取最近30条祝福（返回 blessing:recent）</td></tr>
+              <tr style={trStyle}><td style={tdCode}>SOCKET control:clear-blessings</td><td>清空所有祝福（需认证，广播 blessing:cleared）</td></tr>
             </tbody>
           </table>
         </div>

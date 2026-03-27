@@ -64,6 +64,18 @@ db.exec(`
   );
 `);
 
+// 祝福墙表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS blessings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    nickname TEXT NOT NULL,
+    content TEXT NOT NULL,
+    approved INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // 初始化默认系统状态
 const defaultStates = {
   mode: 'idle',

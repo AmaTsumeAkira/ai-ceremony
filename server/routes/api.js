@@ -28,6 +28,15 @@ const upload = multer({
   },
 });
 
+// 导出端点认证中间件（必须在使用它的路由之前定义）
+function requireExportAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
+    return res.status(401).json({ error: '未认证' });
+  }
+  next();
+}
+
 // POST /api/user/register — 注册用户
 router.post('/user/register', (req, res) => {
   const { nickname } = req.body;
@@ -115,6 +124,14 @@ router.get('/danmaku/leaderboard', (req, res) => {
   res.json(rows);
 });
 
+// GET /api/blessings/recent — 最近30条祝福
+router.get('/blessings/recent', (req, res) => {
+  const rows = db.prepare(
+    'SELECT id, nickname, content, created_at FROM blessings ORDER BY created_at DESC LIMIT 30'
+  ).all();
+  res.json(rows.reverse());
+});
+
 // GET /api/system/state — 系统状态
 router.get('/system/state', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM system_state').all();
@@ -192,15 +209,6 @@ router.post('/upload-background', bgUpload.single('image'), (req, res) => {
   console.log(`[Background] uploaded: ${bgUrl}`);
   res.json({ url: bgUrl });
 });
-
-// 导出端点认证中间件
-function requireExportAuth(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${process.env.CONTROL_PASSWORD}`) {
-    return res.status(401).json({ error: '未认证' });
-  }
-  next();
-}
 
 // GET /api/logs — 活动日志（最近100条，需认证）
 router.get('/logs', requireExportAuth, (req, res) => {

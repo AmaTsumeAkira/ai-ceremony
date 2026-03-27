@@ -8,6 +8,7 @@ import CountdownOverlay from '../components/CountdownOverlay';
 import AnnouncementOverlay from '../components/AnnouncementOverlay';
 import LuckyDrawOverlay from '../components/LuckyDrawOverlay';
 import PollOverlay from '../components/PollOverlay';
+import BlessingWall from '../components/BlessingWall';
 import QRCode from 'qrcode';
 import axios from 'axios';
 
@@ -286,6 +287,9 @@ export default function Display() {
 
       {/* Poll Overlay */}
       <PollOverlay socket={socket} />
+
+      {/* Blessing Wall */}
+      <BlessingWall socket={socket} />
 
       <style>{`
         @keyframes fadeInScale {

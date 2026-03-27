@@ -470,6 +470,8 @@ export default function Control() {
       poll_vote: { icon: '🗳️', text: `${data.nickname || '用户'} 投票: ${data.option || ''}`, color: '#40a9ff' },
       poll_closed: { icon: '📊', text: '投票已关闭', color: '#40a9ff' },
       system_message: { icon: '💬', text: `系统消息: ${data.text || ''}`, color: '#40a9ff' },
+      blessing: { icon: '🎊', text: `${data.nickname || '用户'} 送祝福: ${data.content || ''}`, color: '#ffd700' },
+      blessing_clear: { icon: '🧹', text: '祝福墙已清空', color: '#ffd700' },
     }
     const info = labels[log.event_type] || { icon: '📌', text: log.event_type, color: '#666' }
     return { ...info, time }
@@ -648,6 +650,9 @@ export default function Control() {
                 </Row>
                 <Button icon={<DeleteOutlined />} onClick={handleClearDanmaku} block style={styles.actionBtn}>
                   🧹 清空弹幕
+                </Button>
+                <Button icon={<DeleteOutlined />} onClick={() => { emit('control:clear-blessings'); antMessage.info('🎊 祝福墙已清空') }} block style={styles.actionBtn}>
+                  🎊 清空祝福墙
                 </Button>
                 <Row gutter={12}>
                   <Col span={12}>

@@ -475,6 +475,83 @@ function checkDanmakuRate(socketId) {
       }
     });
 
+    // ========== 祝福墙 ==========
+    // 祝福速率限制：每个 socket 每 5 秒最多 1 条
+    const blessingRateLimit = new Map();
+
+    function checkBlessingRate(socketId) {
+      const now = Date.now();
+      const entry = blessingRateLimit.get(socketId);
+      if (!entry || now - entry.windowStart > 5000) {
+        blessingRateLimit.set(socketId, { count: 1, windowStart: now });
+        return true;
+      }
+      return false;
+    }
+
+    // 用户发送祝福
+    socket.on('blessing:send', (data) => {
+      try {
+        if (!socket.userId) {
+          return socket.emit('error', { message: '请先注册' });
+        }
+        if (!checkBlessingRate(socket.id)) {
+          return socket.emit('error', { message: '发送太频繁，请稍候' });
+        }
+        const { content } = data;
+        if (!content || !content.trim()) {
+          return socket.emit('error', { message: '祝福内容不能为空' });
+        }
+        const text = content.trim();
+        if (text.length > 80) {
+          return socket.emit('error', { message: '祝福内容不能超过 80 个字符' });
+        }
+
+        const stmt = db.prepare(
+          'INSERT INTO blessings (user_id, nickname, content) VALUES (?, ?, ?)'
+        );
+        const result = stmt.run(socket.userId, socket.userNickname, text);
+
+        const blessing = {
+          id: result.lastInsertRowid,
+          user_id: socket.userId,
+          nickname: socket.userNickname,
+          content: text,
+          created_at: new Date().toISOString(),
+        };
+
+        // 自动批准，直接广播到大屏
+        io.emit('blessing:new', blessing);
+        logEvent('blessing', { nickname: socket.userNickname, content: text });
+        socket.emit('blessing:sent', { ok: true, id: result.lastInsertRowid });
+        console.log(`[Blessing] ${socket.userNickname}: ${text}`);
+
+        // 保留最近 200 条祝福
+        db.prepare(`DELETE FROM blessings WHERE id NOT IN (SELECT id FROM blessings ORDER BY id DESC LIMIT 200)`).run();
+      } catch (err) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // 获取当前祝福列表（用户端加入时请求）
+    socket.on('blessing:get-recent', () => {
+      try {
+        const rows = db.prepare(
+          'SELECT id, nickname, content, created_at FROM blessings ORDER BY created_at DESC LIMIT 30'
+        ).all();
+        socket.emit('blessing:recent', rows.reverse());
+      } catch {}
+    });
+
+    // 控制端清空祝福
+    socket.on('control:clear-blessings', requireAuth(() => {
+      db.prepare('DELETE FROM blessings').run();
+      io.emit('blessing:cleared');
+      broadcastState(io);
+      logEvent('blessing_clear', { action: 'cleared' });
+      console.log('[Control] blessings cleared');
+    }));
+
     // ========== 系统消息 ==========
     socket.on('control:system-message', requireAuth((data) => {
       const { text } = data;
@@ -702,6 +779,7 @@ function checkDanmakuRate(socketId) {
       authenticatedSockets.delete(socket.id);
       danmakuRateLimit.delete(socket.id);
       emojiRateLimit.delete(socket.id);
+      blessingRateLimit.delete(socket.id);
       if (socket.userId) {
         db.prepare('UPDATE users SET socket_id = NULL WHERE id = ?').run(socket.userId);
       }

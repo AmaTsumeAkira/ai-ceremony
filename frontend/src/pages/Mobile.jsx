@@ -49,6 +49,10 @@ export default function Mobile() {
   const [votedPollId, setVotedPollId] = useState(null)
   const [pollResults, setPollResults] = useState(null)
 
+  // Blessing state
+  const [blessingText, setBlessingText] = useState('')
+  const [sendingBlessing, setSendingBlessing] = useState(false)
+
   // System message state
   const [systemMsg, setSystemMsg] = useState(null)
 
@@ -109,6 +113,11 @@ export default function Mobile() {
       } else {
         antMessage.error(data.message || '修改失败')
       }
+    })
+
+    // Blessing sent result
+    socket.on('blessing:sent', () => {
+      antMessage.success('🎊 祝福已发送！')
     })
 
     // Request current poll on connect
@@ -205,6 +214,15 @@ export default function Mobile() {
     if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
     emit('poll:vote', { pollId, optionIndex })
     setVotedPollId(pollId)
+  }
+
+  const handleSendBlessing = () => {
+    if (!blessingText.trim()) return
+    if (!connected) { antMessage.warning('连接断开，请稍候...'); return }
+    setSendingBlessing(true)
+    emit('blessing:send', { content: blessingText.trim() })
+    setBlessingText('')
+    setTimeout(() => setSendingBlessing(false), 1000)
   }
 
   const handleChangeNickname = () => {
@@ -431,6 +449,33 @@ export default function Mobile() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Blessing Wall Input */}
+        <div style={styles.blessingSection}>
+          <div style={styles.blessingHeader}>
+            <span style={{ fontSize: 18 }}>🎊</span>
+            <span style={styles.blessingTitle}>送祝福</span>
+          </div>
+          <div style={styles.blessingInputRow}>
+            <Input
+              placeholder="写下你的祝福..."
+              value={blessingText}
+              onChange={(e) => setBlessingText(e.target.value)}
+              onPressEnter={handleSendBlessing}
+              maxLength={80}
+              style={styles.blessingInput}
+              disabled={sendingBlessing}
+            />
+            <Button
+              type="primary"
+              onClick={handleSendBlessing}
+              loading={sendingBlessing}
+              style={styles.blessingSendBtn}
+            >
+              发送
+            </Button>
+          </div>
         </div>
 
         {/* Danmaku Input Area */}
@@ -787,5 +832,39 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: 16,
     boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+  },
+
+  // Blessing section
+  blessingSection: {
+    marginTop: 16,
+    padding: '14px 16px',
+    background: 'linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,100,50,0.04))',
+    borderRadius: 16,
+    border: '1px solid rgba(255,215,0,0.15)',
+  },
+  blessingHeader: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    marginBottom: 12,
+  },
+  blessingTitle: {
+    fontSize: 15, fontWeight: 700, color: '#ffd700',
+    letterSpacing: '1px',
+  },
+  blessingInputRow: {
+    display: 'flex', gap: 10,
+  },
+  blessingInput: {
+    flex: 1,
+    borderRadius: 20,
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,215,0,0.15)',
+    height: 40,
+  },
+  blessingSendBtn: {
+    borderRadius: 20,
+    fontWeight: 600,
+    background: 'linear-gradient(135deg, #ffd700, #ff8c00)',
+    border: 'none',
+    color: '#000',
   },
 }
