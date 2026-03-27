@@ -82,7 +82,7 @@ router.post('/user/upload-face', upload.single('face'), (req, res) => {
 });
 
 // GET /api/users — 获取所有注册用户（含头像和无头像的）
-router.get('/users', requireExportAuth, (req, res) => {
+router.get('/users', (req, res) => {
   const rows = db.prepare(
     'SELECT id, nickname, face_url, created_at FROM users ORDER BY created_at DESC'
   ).all();

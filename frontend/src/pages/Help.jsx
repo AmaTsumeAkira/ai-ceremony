@@ -71,7 +71,7 @@ const Help = () => {
               <tr style={trStyle}><td style={tdLabel}>碎裂 / 重建</td><td>手动触发粒子碎裂飞散，或重建恢复文字</td></tr>
               <tr style={trStyle}><td style={tdLabel}>模式切换</td><td>idle / shatter / rebuild / mosaic / danmaku</td></tr>
               <tr style={trStyle}><td style={tdLabel}>自定义文字</td><td>修改大屏粒子文字内容，回车确认</td></tr>
-              <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>设定秒数后启动倒计时，结束后自动碎裂；可随时取消</td></tr>
+              <tr style={trStyle}><td style={tdLabel}>倒计时</td><td>设定秒数后启动倒计时，结束后自动碎裂；支持 5/10/15/30/45/60 秒快捷预设按钮，也可用滑块自定义 1-60 秒；可随时取消</td></tr>
               <tr style={trStyle}><td style={tdLabel}>能量条</td><td>麦克风音量驱动，满值自动触发重建；阈值可实时调整并同步至服务器</td></tr>
               <tr style={trStyle}><td style={tdLabel}>弹幕管理</td><td>一键清空所有弹幕</td></tr>
               <tr style={trStyle}><td style={tdLabel}>马赛克预览</td><td>无头像时用 Emoji 填充预览效果</td></tr>

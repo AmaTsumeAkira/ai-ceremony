@@ -14,8 +14,8 @@ export function useSocket() {
 
   useEffect(() => {
     const s = io(SERVER_URL, {
-      // 微信内置浏览器可能阻止 WebSocket，允许 polling 降级
-      transports: ['polling', 'websocket'],
+      // 优先 WebSocket，微信内置浏览器降级到 polling
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,

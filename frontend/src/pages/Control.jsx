@@ -686,9 +686,25 @@ export default function Control() {
                   <span>倒计时秒数</span>
                   <Tag color="blue">{countdownSeconds}s</Tag>
                 </div>
+                {/* 快捷预设按钮 */}
+                <Row gutter={[6, 6]}>
+                  {[5, 10, 15, 30, 45, 60].map(sec => (
+                    <Col span={8} key={sec}>
+                      <Button
+                        size="small"
+                        type={countdownSeconds === sec ? 'primary' : 'default'}
+                        onClick={() => setCountdownSeconds(sec)}
+                        block
+                        style={{ borderRadius: 6 }}
+                      >
+                        {sec}秒
+                      </Button>
+                    </Col>
+                  ))}
+                </Row>
                 <Slider
                   min={1}
-                  max={30}
+                  max={60}
                   value={countdownSeconds}
                   onChange={setCountdownSeconds}
                   trackStyle={{ background: 'linear-gradient(90deg, #40a9ff, #f5222d)' }}
